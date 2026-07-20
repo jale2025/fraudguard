@@ -1,0 +1,28 @@
+[tool.ruff]
+# Target Python version of your project
+target-version = "py311"
+
+# Maximum line length (standard for many teams, slightly more generous than strict PEP8)
+line-length = 88
+
+[tool.ruff.lint]
+# 1. SELECTION OF RULE SETS
+select = [
+    "E",   # pycodestyle Errors (Standard PEP8 formatting errors)
+    "W",   # pycodestyle Warnings (Standard PEP8 formatting warnings)
+    "F",   # Pyflakes (Logical errors, unused variables/imports – extremely important!)
+    "I",   # isort (Automatic sorting and grouping of imports)
+    "B",   # flake8-bugbear (Detects potential design flaws and probable bugs)
+    "C90", # mccabe (Checks code complexity to keep functions readable)
+    "N",   # pep8-naming (Ensures variables, classes, and functions follow naming conventions)
+]
+
+# 2. EXCEPTIONS (Rules to be ignored)
+ignore = [
+    "E501", # Ignore line length errors (Ruff's formatter handles code layout automatically)
+]
+
+# 3. ADDITIONAL SETTINGS
+[tool.ruff.lint.mccabe]
+# Maximum cyclomatic complexity allowed per function. Anything above 10 triggers an error.
+max-complexity = 10
