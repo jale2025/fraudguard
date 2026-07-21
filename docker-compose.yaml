@@ -1,0 +1,111 @@
+services:
+  db_service:
+    image: postgres:17
+    container_name: postgres_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ny_taxi
+    ports:
+      - "5555:5432"
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    networks:
+      - ml-services-monitoring
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:latest
+    container_name: mlflow_server
+    ports: 
+      - "5000:5000"
+    env_file:
+      - .env
+    volumes:
+      - mlflow_data:/mlflow
+    # --host 0.0.0.0 -> mlflow server accepts connetions from everyone even from outside the docker
+    # --port 5000 -> the mlflow server is reachable on this port
+    # --backend-store-uri sqlite:///mlflow/mlflow.db -> path to the sql lite db
+    # artifacts-destination /mlflow/artifacts -> Define the path to store the model, plots, csv files etc.
+    # --allowed-hosts localhost:5000,127.0.0.1:5000,host.docker.internal:5000,mlflow:5000 -> Security feature to define how may communicate with the mlflow server
+    command: >
+      mlflow server 
+        --host 0.0.0.0
+        --port 5000 
+        --backend-store-uri sqlite:///mlflow/mlflow.db 
+        --artifacts-destination /mlflow/artifacts 
+        --allowed-hosts localhost:5000,127.0.0.1:5000,host.docker.internal:5000,mlflow:5000
+    networks: 
+      - ml-services-monitoring
+          
+  model-train-register:
+    build:
+      context: src
+      dockerfile: Dockerfile
+    container_name: model_train_reg
+    depends_on:
+      - mlflow
+    ports:
+      - 2020:2020
+    env_file:
+      - .env
+    networks:
+      - ml-services-monitoring
+
+  model-service:
+    build:
+      context: webservice
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
+      REGISTERED_MODEL_NAME: ${REGISTERED_MODEL_NAME}
+      MODEL_ALIAS: ${MODEL_ALIAS}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - ml-services-monitoring
+
+  # prometheus:
+  #   image: prom/prometheus:v3.7.3
+  #   ports:
+  #     - "9090:9090"
+  #   volumes:
+  #     - ./prometheus:/etc/prometheus
+  #     - prometheus-data:/prometheus
+  #   command: --web.enable-lifecycle --config.file=/etc/prometheus/prometheus.yaml
+  #   networks:
+  #     - ml-services-monitoring
+
+  # grafana:
+  #   image: grafana/grafana:13.0.1
+  #   ports:
+  #     - "3000:3000"
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ./grafana/provisioning:/etc/grafana/provisioning
+  #     - ./grafana/dashboards:/etc/grafana/dashboards
+  #     - grafana-data:/var/lib/grafana
+  #   depends_on:
+  #     - prometheus
+  #   networks:
+  #     - ml-services-monitoring
+
+  # evidently_service:
+  #   build:
+  #     context: evidently_service
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "8085:8085"
+  #   networks:
+  #     - ml-services-monitoring
+
+volumes:
+  mlflow_data:
+  # grafana-data:
+  # prometheus-data:
+
+networks:
+  ml-services-monitoring:
+    driver: bridge
