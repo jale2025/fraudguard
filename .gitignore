@@ -222,3 +222,4 @@ __marimo__/
 
 # Jupyter notebook
 *.ipynb
+!notebooks/credit-fraud-dealing-with-imbalanced-datasets.ipynb
