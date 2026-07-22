@@ -40,6 +40,15 @@ services:
         --backend-store-uri sqlite:///mlflow/mlflow.db 
         --artifacts-destination /mlflow/artifacts 
         --allowed-hosts localhost:5000,127.0.0.1:5000,host.docker.internal:5000,mlflow:5000
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:5000/health', timeout=5)\""
+        ]
+      interval: 30s
+      timeout: 30s
+      retries: 5
     networks: 
       - fraud-guard-network
           
@@ -52,7 +61,7 @@ services:
       db_service:
         condition: service_healthy
       mlflow:
-        condition: service_started
+        condition: service_healthy
     ports:
       - 2020:2020
     environment:

@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 BASE_DATASET_PATH = Path(os.environ["BASE_DATASET_PATH"]).resolve()
 MODEL_NAME = os.environ["MODEL_NAME"]
 DEFAULT_MODEL_ALIAS = os.environ["DEFAULT_MODEL_ALIAS"]
+
 MLFLOW_TRACKING_URI = os.environ["MLFLOW_TRACKING_URI"]
 DB_URI = os.environ["DB_URI"]
 DB_TABLE_NAME = os.environ["DB_TABLE_NAME"]

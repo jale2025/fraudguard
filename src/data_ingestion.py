@@ -27,7 +27,7 @@ def data_ingestion(table_name: str, file_path: str) -> None:
     """This script reads a parquet file from a given url and writes it to a postgres database."""
 
     # Check the folder of the filepath variable exist
-    # If not the missing flder will be created
+    # If not the missing folder will be created
     Path(file_path).parent.mkdir(parents=True, exist_ok=True)
 
     # Create the sql alchemy engine object
