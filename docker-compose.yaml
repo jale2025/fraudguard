@@ -1,0 +1,143 @@
+services:
+  db_service:
+    image: postgres:17
+    container_name: postgres_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE}
+    ports:
+      - "5433:5432"
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_DATABASE}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - fraud-guard-network
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:latest
+    container_name: mlflow_server
+    ports: 
+      - "5000:5000"
+    env_file:
+      - .env
+    volumes:
+      - mlflow_data:/mlflow
+    # --host 0.0.0.0 -> mlflow server accepts connetions from everyone even from outside the docker
+    # --port 5000 -> the mlflow server is reachable on this port
+    # --backend-store-uri sqlite:///mlflow/mlflow.db -> path to the sql lite db
+    # artifacts-destination /mlflow/artifacts -> Define the path to store the model, plots, csv files etc.
+    # --allowed-hosts localhost:5000,127.0.0.1:5000,host.docker.internal:5000,mlflow:5000 -> Security feature to define how may communicate with the mlflow server
+    command: >
+      mlflow server 
+        --host 0.0.0.0
+        --port 5000 
+        --backend-store-uri sqlite:///mlflow/mlflow.db 
+        --artifacts-destination /mlflow/artifacts 
+        --allowed-hosts localhost:5000,127.0.0.1:5000,host.docker.internal:5000,mlflow:5000
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:5000/health', timeout=5)\""
+        ]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+    networks: 
+      - fraud-guard-network
+          
+  model-train-register:
+    build:
+      context: .
+      dockerfile: src/Dockerfile
+    container_name: model-train-register
+    depends_on:
+      db_service:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+    ports:
+      - 2020:2020
+    environment:
+      BASE_DATASET_PATH: ${BASE_DATASET_PATH}
+      MODEL_NAME: ${MODEL_NAME}
+      DEFAULT_MODEL_ALIAS: ${DEFAULT_MODEL_ALIAS}
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_TABLE_NAME: ${DB_TABLE_NAME}
+      DB_URI: ${DB_URI}
+    networks:
+      - fraud-guard-network
+
+  api-service:
+    build:
+      context: webservice
+      dockerfile: Dockerfile
+    container_name: fastapi
+    depends_on:
+      model-train-register:
+        condition: service_started
+    ports:
+      - "8000:8000"
+    environment:
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
+      MODEL_NAME: ${MODEL_NAME}
+      DEFAULT_MODEL_ALIAS: ${DEFAULT_MODEL_ALIAS}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - fraud-guard-network
+
+  # prometheus:
+  #   image: prom/prometheus:v3.7.3
+  #   ports:
+  #     - "9090:9090"
+  #   volumes:
+  #     - ./prometheus:/etc/prometheus
+  #     - prometheus-data:/prometheus
+  #   command: --web.enable-lifecycle --config.file=/etc/prometheus/prometheus.yaml
+  #   networks:
+  #     - fraud-guard-network
+
+  # grafana:
+  #   image: grafana/grafana:13.0.1
+  #   ports:
+  #     - "3000:3000"
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ./grafana/provisioning:/etc/grafana/provisioning
+  #     - ./grafana/dashboards:/etc/grafana/dashboards
+  #     - grafana-data:/var/lib/grafana
+  #   depends_on:
+  #     - prometheus
+  #   networks:
+  #     - fraud-guard-network
+
+  # evidently_service:
+  #   build:
+  #     context: evidently_service
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "8085:8085"
+  #   networks:
+  #     - fraud-guard-network
+
+volumes:
+  mlflow_data:
+  dbdata:
+  # grafana-data:
+  # prometheus-data:
+
+networks:
+  fraud-guard-network:
+    driver: bridge
