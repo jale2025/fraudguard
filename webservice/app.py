@@ -21,10 +21,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Load environment variables from the composed environment.
-MLFLOW_TRACKING_URI = "http://127.0.0.1:5000"
-REGISTERED_MODEL_NAME = os.environ["REGISTERED_MODEL_NAME"]
-MODEL_ALIAS = os.environ["MODEL_ALIAS"]
-MONITORING_URL = os.environ["MONITORING_URL"]
+MLFLOW_TRACKING_URI = os.environ["MLFLOW_TRACKING_URI"]
+REGISTERED_MODEL_NAME = os.environ["MODEL_NAME"]
+DEFAULT_MODEL_ALIAS = os.environ["DEFAULT_MODEL_ALIAS"]
+# MONITORING_URL = os.environ["MONITORING_URL"]
 
 app = FastAPI(title="Credit Card Fraud Detection API", version="0.1")
 
@@ -45,7 +45,7 @@ def health() -> dict[str, str]:
 def predict_transaction(data: Transaction) -> dict[str, Any]:
     # First serve the model prediction. Monitoring should observe this request,
     # but it should not change the prediction result returned to the client.
-    prediction = predict(REGISTERED_MODEL_NAME, data, MODEL_ALIAS)
+    prediction = predict(REGISTERED_MODEL_NAME, data, DEFAULT_MODEL_ALIAS)
     # try:
     #     print(f"Sending data to metrics application: {data}")
 

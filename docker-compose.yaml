@@ -4,15 +4,20 @@ services:
     container_name: postgres_db
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: ny_taxi
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DATABASE: ${DB_DATABASE}
     ports:
-      - "5555:5432"
+      - "5433:5432"
     volumes:
       - dbdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_DATABASE}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     networks:
-      - ml-services-monitoring
+      - fraud-guard-network
 
   mlflow:
     image: ghcr.io/mlflow/mlflow:latest
@@ -36,21 +41,29 @@ services:
         --artifacts-destination /mlflow/artifacts 
         --allowed-hosts localhost:5000,127.0.0.1:5000,host.docker.internal:5000,mlflow:5000
     networks: 
-      - ml-services-monitoring
+      - fraud-guard-network
           
   model-train-register:
     build:
-      context: src
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: src/Dockerfile
     container_name: model_train_reg
     depends_on:
-      - mlflow
+      db_service:
+        condition: service_healthy
+      mlflow:
+        condition: service_started
     ports:
       - 2020:2020
-    env_file:
-      - .env
+    environment:
+      BASE_DATASET_PATH: ${BASE_DATASET_PATH}
+      MODEL_NAME: ${MODEL_NAME}
+      DEFAULT_MODEL_ALIAS: ${DEFAULT_MODEL_ALIAS}
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
+      DB_URI: ${DB_URI}
+      DB_TABLE_NAME: ${DB_TABLE_NAME}
     networks:
-      - ml-services-monitoring
+      - fraud-guard-network
 
   model-service:
     build:
@@ -60,12 +73,12 @@ services:
       - "8080:8080"
     environment:
       MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
-      REGISTERED_MODEL_NAME: ${REGISTERED_MODEL_NAME}
-      MODEL_ALIAS: ${MODEL_ALIAS}
+      MODEL_NAME: ${MODEL_NAME}
+      DEFAULT_MODEL_ALIAS: ${DEFAULT_MODEL_ALIAS}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
-      - ml-services-monitoring
+      - fraud-guard-network
 
   # prometheus:
   #   image: prom/prometheus:v3.7.3
@@ -76,7 +89,7 @@ services:
   #     - prometheus-data:/prometheus
   #   command: --web.enable-lifecycle --config.file=/etc/prometheus/prometheus.yaml
   #   networks:
-  #     - ml-services-monitoring
+  #     - fraud-guard-network
 
   # grafana:
   #   image: grafana/grafana:13.0.1
@@ -90,7 +103,7 @@ services:
   #   depends_on:
   #     - prometheus
   #   networks:
-  #     - ml-services-monitoring
+  #     - fraud-guard-network
 
   # evidently_service:
   #   build:
@@ -99,13 +112,14 @@ services:
   #   ports:
   #     - "8085:8085"
   #   networks:
-  #     - ml-services-monitoring
+  #     - fraud-guard-network
 
 volumes:
   mlflow_data:
+  dbdata:
   # grafana-data:
   # prometheus-data:
 
 networks:
-  ml-services-monitoring:
+  fraud-guard-network:
     driver: bridge

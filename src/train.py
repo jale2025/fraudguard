@@ -4,16 +4,19 @@ import os
 import time
 from pathlib import Path
 import click
+from dotenv import load_dotenv
 
 
-DEFAULT_INPUT_PATH = Path("data/base_dataset.parquet")
-DEFAULT_MODEL_NAME = "rnd_search_cv_rnd_forest_classifier"
-DEFAULT_ALIAS = "production"
-DEFAULT_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000")
+BASE_DATASET_PATH = Path(os.environ["BASE_DATASET_PATH"]).resolve()
+MODEL_NAME = os.environ["MODEL_NAME"]
+DEFAULT_MODEL_ALIAS = os.environ["DEFAULT_MODEL_ALIAS"]
+MLFLOW_TRACKING_URI = os.environ["MLFLOW_TRACKING_URI"]
+DB_URI = os.environ["DB_URI"]
+DB_TABLE_NAME = os.environ["DB_TABLE_NAME"]
 
 SEED = 42
 
-DB_URI = "postgresql://postgres:postgres@localhost:5433/ny_taxi"
+
 
 def read_base_dataset(filename: str) -> pd.DataFrame:
     """
@@ -95,25 +98,25 @@ def wait_for_model_version(client, model_name, version, timeout_seconds):
     "--input",
     "input_path",
     type=click.Path(path_type=Path, dir_okay=False),
-    default=DEFAULT_INPUT_PATH,
+    default=BASE_DATASET_PATH,
     show_default=True,
     help="CSV file used to bootstrap the local model.",
 )
 @click.option(
     "--mlflow_tracking-uri",
-    default=DEFAULT_TRACKING_URI,
+    default=MLFLOW_TRACKING_URI,
     show_default=True,
     help="MLflow tracking URI used for logging and registration.",
 )
 @click.option(
     "--model-name",
-    default=DEFAULT_MODEL_NAME,
+    default=MODEL_NAME,
     show_default=True,
     help="Registered model name used by the monitoring API.",
 )
 @click.option(
     "--alias",
-    default=DEFAULT_ALIAS,
+    default=DEFAULT_MODEL_ALIAS,
     show_default=True,
     help="Model alias that the API resolves through MLflow.",
 )
@@ -183,19 +186,19 @@ def main(
     click.echo(f"Using MLflow tracking uri: {mlflow_tracking_uri}")
 
     # Read the parquet file of the base dataset
-    df_fraud_detection = read_base_dataset(filename=input_path)
+    # df_fraud_detection = read_base_dataset(filename=input_path)
 
-    engine = create_engine("postgresql://postgres:postgres@localhost:5433/ny_taxi")
+    # engine = create_engine(DB_URI)
 
-    with engine.begin() as connection:
-        connection.execute(text("DROP VIEW IF EXISTS yellow_taxi_clean"))
+    # with engine.begin() as connection:
+    #     connection.execute(text("DROP VIEW IF EXISTS yellow_taxi_clean"))
 
-    # Create an empty table with the schema inferred from the DataFrame.
-    # df_fraud_detection.head(0).to_sql(name="transactions", con=engine, if_exists="replace", index=False)
-    # print(f"Created or replaced table 'transactions'.")
+    # # Create an empty table with the schema inferred from the DataFrame.
+    # # df_fraud_detection.head(0).to_sql(name="transactions", con=engine, if_exists="replace", index=False)
+    # # print(f"Created or replaced table 'transactions'.")
 
-    # Write the base dataset in the postgresql database
-    write_dataset_in_postgresql_db(df=df_fraud_detection, db_uri=DB_URI, table_name="transactions")
+    # # Write the base dataset in the postgresql database
+    # write_dataset_in_postgresql_db(df=df_fraud_detection, db_uri=DB_URI, table_name=DB_TABLE_NAME)
 
     # Get all data of the postgresql database
     df_fraud_detection_sql = get_data_from_postgresql_db(db_uri=DB_URI, query="SELECT * FROM transactions")
@@ -283,11 +286,11 @@ def main(
     client = MlflowClient()
 
     # Set the experiment name
-    experiment = mlflow.set_experiment(experiment_name="fraud detection")
+    experiment = mlflow.set_experiment(experiment_name="fraud_detection")
     click.echo(f"Set the experiment name = {experiment.name}")
 
     # Start running the workflow
-    with mlflow.start_run(run_name="fraud detection model") as run:
+    with mlflow.start_run(run_name="fraud_detection_model") as run:
 
         # Logging of workflow parameters
         mlflow.log_param("training_rows", len(X_train))
@@ -303,14 +306,14 @@ def main(
         # Log the model
         mlflow.sklearn.log_model(
             rnd_search_cv.best_estimator_,
-            name="rnd_search_cv_rnd_forest_classifier",
+            name=MODEL_NAME,
             serialization_format="skops",
             signature=input_schema,
             input_example=input_example,
         )
 
         # Set the model uri of the current run including the run id
-        model_uri = f"runs:/{run.info.run_id}/rnd_search_cv_rnd_forest_classifier"
+        model_uri = f"runs:/{run.info.run_id}/{model_name}"
 
     # Print the run id and the model uri
     click.echo(f"Logged run {run.info.run_id}")
@@ -329,23 +332,6 @@ def main(
         version=registration.version,
         timeout_seconds=timeout_seconds,
     )
-
-    # # Add an alias to the registered model
-    # client.set_registered_model_alias(
-    #     name=model_name, alias=alias, version=model_version.version
-    # )
-
-    # Print the registered model (version) and the alias
-    # click.echo(
-    #     f"Registered {model_name} version {model_version.version} "
-    #     f"and assigned alias '{alias}'."
-    # )
-
-    # # Print the alias under which you can find the model
-    # click.echo(
-    #     "The FastAPI service can now resolve models:/"
-    #     f"{model_name}@{alias} from your local MLflow server."
-    # )
 
     # Check the current recall is better than the registered recall score
     recall_prod = None
