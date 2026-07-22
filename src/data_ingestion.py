@@ -19,7 +19,7 @@ def _database_url() -> str:
     host = os.environ["DB_HOST"]
     port = os.environ["DB_PORT"]
     db_name = os.environ["DB_DATABASE"]
-    print(f"postgresql://{user}:{password}@{host}:{port}/{db_name}")
+    print(f"Database URL the data gets ingested to: postgresql://{user}:{password}@{host}:{port}/{db_name}")
     return f"postgresql://{user}:{password}@{host}:{port}/{db_name}"
 
 

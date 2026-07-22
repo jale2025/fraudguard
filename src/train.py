@@ -6,7 +6,6 @@ from pathlib import Path
 import click
 from dotenv import load_dotenv
 
-
 BASE_DATASET_PATH = Path(os.environ["BASE_DATASET_PATH"]).resolve()
 MODEL_NAME = os.environ["MODEL_NAME"]
 DEFAULT_MODEL_ALIAS = os.environ["DEFAULT_MODEL_ALIAS"]
@@ -16,8 +15,6 @@ DB_URI = os.environ["DB_URI"]
 DB_TABLE_NAME = os.environ["DB_TABLE_NAME"]
 
 SEED = 42
-
-
 
 def read_base_dataset(filename: str) -> pd.DataFrame:
     """
@@ -185,21 +182,6 @@ def main(
 
     # Print the mlflow tracking uri
     click.echo(f"Using MLflow tracking uri: {mlflow_tracking_uri}")
-
-    # Read the parquet file of the base dataset
-    # df_fraud_detection = read_base_dataset(filename=input_path)
-
-    # engine = create_engine(DB_URI)
-
-    # with engine.begin() as connection:
-    #     connection.execute(text("DROP VIEW IF EXISTS yellow_taxi_clean"))
-
-    # # Create an empty table with the schema inferred from the DataFrame.
-    # # df_fraud_detection.head(0).to_sql(name="transactions", con=engine, if_exists="replace", index=False)
-    # # print(f"Created or replaced table 'transactions'.")
-
-    # # Write the base dataset in the postgresql database
-    # write_dataset_in_postgresql_db(df=df_fraud_detection, db_uri=DB_URI, table_name=DB_TABLE_NAME)
 
     # Get all data of the postgresql database
     df_fraud_detection_sql = get_data_from_postgresql_db(db_uri=DB_URI, query="SELECT * FROM transactions")
