@@ -1,5 +1,21 @@
 # fraudguard
 
+## Setup
+
+You will need **Docker Desktop** installed and running on your machine. If you do not have it installed, please follow the [installation instructions](https://docs.docker.com/get-docker/).
+
+Before running the project, copy `.env.example` to `.env` from the repository root.
+
+Git BASH / Linux / macOS:
+```BASH / Linux / macOS
+cp .env.example .env
+```
+
+PowerShell:
+```Powershell
+Copy-Item .env.example .env
+```
+
 ## Data preparation 
 
 For the pre-preparations we downloaded the data from [kaggle credit card fraud dataset](https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud/) and separated it in a first step to be able to simulate a full MLOps lifecycle.
