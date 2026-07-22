@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DATABASE: ${DB_DATABASE}
+      POSTGRES_DB: ${DB_DATABASE}
     ports:
       - "5433:5432"
     volumes:
@@ -47,7 +47,7 @@ services:
     build:
       context: .
       dockerfile: src/Dockerfile
-    container_name: model_train_reg
+    container_name: model-train-register
     depends_on:
       db_service:
         condition: service_healthy
@@ -60,17 +60,23 @@ services:
       MODEL_NAME: ${MODEL_NAME}
       DEFAULT_MODEL_ALIAS: ${DEFAULT_MODEL_ALIAS}
       MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
-      DB_URI: ${DB_URI}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_DATABASE: ${DB_DATABASE}
       DB_TABLE_NAME: ${DB_TABLE_NAME}
+      DB_URI: ${DB_URI}
     networks:
       - fraud-guard-network
 
-  model-service:
+  api-service:
     build:
       context: webservice
       dockerfile: Dockerfile
+    container_name: fastapi
     ports:
-      - "8080:8080"
+      - "8000:8000"
     environment:
       MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
       MODEL_NAME: ${MODEL_NAME}
