@@ -51,7 +51,38 @@ services:
       retries: 5
     networks: 
       - fraud-guard-network
-          
+
+  prefect-server:
+    image: prefecthq/prefect:3-latest
+    container_name: prefect_server
+    restart: always
+    command: prefect server start --host 0.0.0.0
+    ports:
+      - "4200:4200" # Prefect Dashboard UI & API
+    environment:
+      # Zeigt Prefect auf deine bestehende Postgres-DB (Nutzt ein eigenes Schema/DB 'prefect_db')
+      PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_DATABASE}
+      # Server-interne Konfiguration
+      PREFECT_SERVER_API_HOST: ${PREFECT_SERVER_API_HOST}
+      PREFECT_UI_URL: ${PREFECT_UI_URL}
+    depends_on:
+      db_service:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import os, urllib.request; url = os.environ['PREFECT_UI_URL'].rstrip('/') + '/api/health'; urllib.request.urlopen(url, timeout=5)",
+        ]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 10s
+    networks:
+      - fraud-guard-network
+
   model-train-register:
     build:
       context: .
@@ -78,7 +109,7 @@ services:
       DB_URI: ${DB_URI}
     networks:
       - fraud-guard-network
-
+  
   api-service:
     build:
       context: webservice

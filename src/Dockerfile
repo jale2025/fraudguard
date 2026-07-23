@@ -17,4 +17,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 EXPOSE 2020
 
-CMD ["sh", "-c", "python data_ingestion.py && python train.py"]
+CMD ["sh", "-c", "python data_ingestion.py"]
+#CMD ["sh", "-c", "python data_ingestion.py && python train.py"]
