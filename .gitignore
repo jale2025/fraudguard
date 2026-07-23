@@ -224,3 +224,6 @@ __marimo__/
 *.ipynb
 !notebooks/credit-fraud-dealing-with-imbalanced-datasets.ipynb
 .python-version
+
+# data folders that change during simulation 
+data/runtime
