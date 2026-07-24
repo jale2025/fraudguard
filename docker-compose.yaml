@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_DB: postgres
     ports:
       - "5433:5432"
     volumes:
@@ -77,30 +77,49 @@ services:
     networks:
       - fraud-guard-network
 
-  model-train-register:
+  # model-train-register:
+  #   build:
+  #     context: .
+  #     dockerfile: src/Dockerfile
+  #   container_name: model-train-register
+  #   depends_on:
+  #     db_service:
+  #       condition: service_healthy
+  #     mlflow:
+  #       condition: service_healthy
+  #   ports:
+  #     - 2020:2020
+  #   environment:
+  #     BASE_DATASET_PATH: ${BASE_DATASET_PATH}
+  #     MODEL_NAME: ${MODEL_NAME}
+  #     DEFAULT_MODEL_ALIAS: ${DEFAULT_MODEL_ALIAS}
+  #     MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
+  #     DB_USER: ${DB_USER}
+  #     DB_PASSWORD: ${DB_PASSWORD}
+  #     DB_HOST: ${DB_HOST}
+  #     DB_PORT: ${DB_PORT}
+  #     DB_DATABASE: ${DB_DATABASE}
+  #     DB_TABLE_NAME: ${DB_TABLE_NAME}
+  #     DB_URI: ${DB_URI}
+  #   networks:
+  #     - fraud-guard-network
+
+  prefect-worker:
     build:
       context: .
-      dockerfile: src/Dockerfile
-    container_name: model-train-register
+      dockerfile: prefect/Dockerfile
+    container_name: prefect_worker
     depends_on:
-      db_service:
+      prefect-server:
         condition: service_healthy
-      mlflow:
-        condition: service_healthy
-    ports:
-      - 2020:2020
+    volumes:
+      - data/prefect_volume:/data
     environment:
-      BASE_DATASET_PATH: ${BASE_DATASET_PATH}
-      MODEL_NAME: ${MODEL_NAME}
-      DEFAULT_MODEL_ALIAS: ${DEFAULT_MODEL_ALIAS}
-      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
-      DB_DATABASE: ${DB_DATABASE}
-      DB_TABLE_NAME: ${DB_TABLE_NAME}
-      DB_URI: ${DB_URI}
+      PREFECT_API_URL: http://prefect-server:4200/api
+      PYTHONPATH: /prefect/src
+      DATA_DIR_INCOMING: /data/incoming
+      DATA_DIR_PROCESSED: /data/processed
+      DATA_DIR_QUARANTINE: /data/quarantine
     networks:
       - fraud-guard-network
   

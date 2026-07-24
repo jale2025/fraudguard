@@ -1,0 +1,7 @@
+version: 2
+
+sources:
+  - name: src_fraud_detection
+    schema: public
+    tables:
+      - name: transactions

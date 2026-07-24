@@ -37,7 +37,7 @@ def data_ingestion(table_name: str, file_path: str) -> None:
     df_transactions = pd.read_parquet(f"{file_path}")
 
     # Take the df columns and create an empty table with the given column schema
-    df_transactions.head(n=0).to_sql(name=table_name, con=engine, if_exists="replace", index=False)
+    df_transactions.head(n=0).to_sql(name=table_name, con=engine, if_exists="append", index=False)
 
     # Open the parquet file object
     parquet_file = pq.ParquetFile(f"{file_path}")

@@ -225,5 +225,12 @@ __marimo__/
 !notebooks/credit-fraud-dealing-with-imbalanced-datasets.ipynb
 .python-version
 
-# data folders that change during simulation 
-data/runtime
+# do not track any files in the prefect_volume folders, only keep the structure (!.gitkeep)
+data/prefect_volume/incoming/*
+data/prefect_volume/processed/*
+data/prefect_volume/quarantine/*
+
+!data/prefect_volume/incoming/.gitkeep
+!data/prefect_volume/processed/.gitkeep
+!data/prefect_volume/quarantine/.gitkeep
+.vscode/settings.json

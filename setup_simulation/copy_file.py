@@ -1,7 +1,7 @@
 import shutil
 import os
 
-def copy_parquet(source_path: str, destination_path: str) -> None:
+def copy_file(source_path: str, destination_path: str) -> None:
     """Copy a file from source_path to destination_path
 
     Args:
