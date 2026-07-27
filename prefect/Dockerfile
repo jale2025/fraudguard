@@ -7,10 +7,11 @@ ENV PYTHONPATH=/prefect/src
 
 WORKDIR /prefect
 
+COPY prefect/requirements.txt /prefect/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
 COPY src /prefect/src
 COPY prefect /prefect
 COPY dbt /prefect/dbt
-
-RUN pip install --no-cache-dir -r /prefect/requirements.txt
 
 CMD ["python", "flow.py"]

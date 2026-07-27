@@ -1,7 +1,10 @@
 from src.data_helper import FileLists, data_available, parquet_to_sql, move_file, is_parquet, validate_data_files, database_url
 from prefect import task
 from pathlib import Path
+
+
 import os
+import subprocess
 
 @task
 def data_ingestion(dir_path: str | Path = os.environ["DATA_DIR_INCOMING"]) -> bool:
@@ -43,3 +46,44 @@ def data_ingestion(dir_path: str | Path = os.environ["DATA_DIR_INCOMING"]) -> bo
 
     
 
+@task
+def dbt_build(project_dir: str = os.environ["DBT_PROJECT_DIR"], target: str = "dev") -> bool:
+    """prefect task to run the dbt build command
+
+    Args:
+        project_dir (str, optional): dbt project directory. Defaults to os.environ["DBT_PROJECT_DIR"].
+        target (str, optional): dbt target. Defaults to "dev".
+
+    Raises:
+        RuntimeError: raised if dbt build failed
+
+    Returns:
+        int: The return code of the dbt build command.
+    """
+    command = [
+        "dbt",
+        "build",
+        "--project-dir", str(Path(project_dir).resolve()),
+        "--profiles-dir", str(Path(project_dir).resolve()),
+        "--target", target,
+    ]
+
+    result = subprocess.run(
+        command,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
+
+    print(f"DBT BUILD OUTPUT:\n{result.stdout}")
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"dbt build failed:\n{result.stdout}"
+        )
+
+    return result.returncode == 0
+
+
+# @task
+# def

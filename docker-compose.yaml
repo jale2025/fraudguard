@@ -115,11 +115,12 @@ services:
     volumes:
       - data/prefect_volume:/data
     environment:
-      PREFECT_API_URL: http://prefect-server:4200/api
+      PREFECT_API_URL: ${PREFECT_API_URL}
       PYTHONPATH: /prefect/src
       DATA_DIR_INCOMING: /data/incoming
       DATA_DIR_PROCESSED: /data/processed
       DATA_DIR_QUARANTINE: /data/quarantine
+      DBT_PROJECT_DIR: /prefect/dbt
     networks:
       - fraud-guard-network
   

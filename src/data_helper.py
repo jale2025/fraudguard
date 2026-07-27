@@ -79,9 +79,9 @@ def validate_data_files(dir_path: str | Path = os.environ["DATA_DIR_INCOMING"]) 
     for item in dir_path.iterdir():
 
         if is_parquet(item):
-            file_lists.valid_list.append(item)
+            file_lists.valid_list.append(str(item))
         else:
-            file_lists.invalid_list.append(item)
+            file_lists.invalid_list.append(str(item))
 
     return file_lists
         
