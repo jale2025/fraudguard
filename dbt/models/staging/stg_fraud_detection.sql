@@ -32,7 +32,8 @@ select
     "V28" as pc_28,
     "Amount" as amount,
     "Class" as class,
-    ingestion_time
+    ingestion_time,
+    current_timestamp AT TIME ZONE 'UTC' as dbt_timestamp
 from {{ source('src_fraud_detection', 'transactions') }}
 
 {% if target.name == 'dev' %}

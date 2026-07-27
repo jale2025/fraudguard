@@ -187,8 +187,8 @@ def main(
     df_fraud_detection_sql = get_data_from_postgresql_db(db_uri=DB_URI, query="SELECT * FROM transactions")
 
     # Split data in train/test data
-    col_name_class = "Class"
-    col_name_amount = "Amount"
+    col_name_class = "class"
+    col_name_amount = "amount"
 
     # Transform polars df into pandas df
     df_fraud_detection_sql = df_fraud_detection_sql.to_pandas()

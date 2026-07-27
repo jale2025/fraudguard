@@ -138,6 +138,10 @@ models:
         description: Time the data was written in the table.
         data_tests:
           - not_null
+      - name: dbt_timestamp
+        description: Dbt time stamp.
+        data_tests:
+          - not_null
 
 seeds:
   - name: target_labels
