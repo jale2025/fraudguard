@@ -1,8 +1,8 @@
 from src.data_helper import FileLists, data_available, parquet_to_sql, move_file, is_parquet, validate_data_files, database_url
 from prefect import task
 from pathlib import Path
-from train import get_training_data, train_model
-from model_registration import register_model
+from src.train import get_training_data, train_model
+from src.model_registration import register_model
 
 import os
 import subprocess
@@ -118,7 +118,7 @@ def model_registration(
     mlflow_tracking_uri: str = MLFLOW_TRACKING_URI,
     timeout_seconds: int = 60) -> None:
     register_model(
-        rnd_search_cv_obj=train_result_dict["rnd_search_cv_obj"],
+        rnd_search_cv_obj=train_result_dict["model"],
         training_rows=train_result_dict["training_rows"],
         test_rows=train_result_dict["test_rows"],
         recall_train=train_result_dict["recall_train"],

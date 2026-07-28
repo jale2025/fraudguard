@@ -132,8 +132,9 @@ models:
               arguments:
                 values: [0, 1]
           - relationships:
-              to: ref('target_labels')
-              field: Class               
+              arguments:
+                to: ref('target_labels')
+                field: class               
       - name: ingestion_time
         description: Time the data was written in the table.
         data_tests:
@@ -147,7 +148,7 @@ seeds:
   - name: target_labels
     description: Mapping file for target labels.
     columns:
-      - name: Class
+      - name: class
         description: Target (fraudulant or not fraudulant)
         data_tests:
           - not_null

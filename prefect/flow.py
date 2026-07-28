@@ -8,6 +8,10 @@ from src.data_helper import data_available
 def fraudguard_pipeline() -> None:
     logger = get_run_logger()
 
+    # Initialize the bool variables
+    data_ingested = False
+    dbt_success = False
+
     # Check if there is data available to process
     should_run = data_available(dir_path=os.environ["DATA_DIR_INCOMING"])
     logger.info(f"Files available: {should_run}")
@@ -34,5 +38,5 @@ if __name__ == "__main__":
     fraudguard_pipeline()
     fraudguard_pipeline.serve(
         name="fraud_detection_pipeline_hourly_serve",
-        interval=300
+        cron="0 1 * * *",
     )

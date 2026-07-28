@@ -37,5 +37,5 @@ select
 from {{ source('src_fraud_detection', 'transactions') }}
 
 {% if target.name == 'dev' %}
-    limit 1000
+    -- limit 1000
 {% endif %}

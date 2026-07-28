@@ -53,7 +53,7 @@ services:
       - fraud-guard-network
 
   prefect-server:
-    image: prefecthq/prefect:3-latest
+    image: prefecthq/prefect:3.8.0-python3.11
     container_name: prefect_server
     restart: always
     command: prefect server start --host 0.0.0.0
@@ -69,40 +69,14 @@ services:
       db_service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "prefect", "server", "database", "check"]
+      # HTTP-Check direkt gegen den Prefect-Health-Endpunkt
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:4200/api/health', timeout=5)\""]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 15s
+      start_period: 20s
     networks:
       - fraud-guard-network
-
-  # model-train-register:
-  #   build:
-  #     context: .
-  #     dockerfile: src/Dockerfile
-  #   container_name: model-train-register
-  #   depends_on:
-  #     db_service:
-  #       condition: service_healthy
-  #     mlflow:
-  #       condition: service_healthy
-  #   ports:
-  #     - 2020:2020
-  #   environment:
-  #     BASE_DATASET_PATH: ${BASE_DATASET_PATH}
-  #     MODEL_NAME: ${MODEL_NAME}
-  #     DEFAULT_MODEL_ALIAS: ${DEFAULT_MODEL_ALIAS}
-  #     MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
-  #     DB_USER: ${DB_USER}
-  #     DB_PASSWORD: ${DB_PASSWORD}
-  #     DB_HOST: ${DB_HOST}
-  #     DB_PORT: ${DB_PORT}
-  #     DB_DATABASE: ${DB_DATABASE}
-  #     DB_TABLE_NAME: ${DB_TABLE_NAME}
-  #     DB_URI: ${DB_URI}
-  #   networks:
-  #     - fraud-guard-network
 
   prefect-worker:
     build:
@@ -113,7 +87,7 @@ services:
       prefect-server:
         condition: service_healthy
     volumes:
-      - data/prefect_volume:/data
+      - ./data/prefect_volume:/data
     environment:
       PREFECT_API_URL: ${PREFECT_API_URL}
       PYTHONPATH: /prefect
@@ -122,6 +96,17 @@ services:
       DATA_DIR_QUARANTINE: /data/quarantine
       DBT_PROJECT_DIR: /prefect/dbt
       DBT_SCHEMA: ${DBT_SCHEMA}
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
+      MODEL_NAME: ${MODEL_NAME}
+      DEFAULT_MODEL_ALIAS: ${DEFAULT_MODEL_ALIAS}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_TABLE_NAME: ${DB_TABLE_NAME}
+      DB_URI: ${DB_URI}
+
     networks:
       - fraud-guard-network
   
@@ -131,7 +116,7 @@ services:
       dockerfile: Dockerfile
     container_name: fastapi
     depends_on:
-      model-train-register:
+      prefect-worker:
         condition: service_started
     ports:
       - "8000:8000"
@@ -178,6 +163,7 @@ services:
   #   networks:
   #     - fraud-guard-network
 
+
 volumes:
   mlflow_data:
   dbdata:
@@ -187,3 +173,31 @@ volumes:
 networks:
   fraud-guard-network:
     driver: bridge
+
+
+  # model-train-register:
+  #   build:
+  #     context: .
+  #     dockerfile: src/Dockerfile
+  #   container_name: model-train-register
+  #   depends_on:
+  #     db_service:
+  #       condition: service_healthy
+  #     mlflow:
+  #       condition: service_healthy
+  #   ports:
+  #     - 2020:2020
+  #   environment:
+  #     BASE_DATASET_PATH: ${BASE_DATASET_PATH}
+  #     MODEL_NAME: ${MODEL_NAME}
+  #     DEFAULT_MODEL_ALIAS: ${DEFAULT_MODEL_ALIAS}
+  #     MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
+  #     DB_USER: ${DB_USER}
+  #     DB_PASSWORD: ${DB_PASSWORD}
+  #     DB_HOST: ${DB_HOST}
+  #     DB_PORT: ${DB_PORT}
+  #     DB_DATABASE: ${DB_DATABASE}
+  #     DB_TABLE_NAME: ${DB_TABLE_NAME}
+  #     DB_URI: ${DB_URI}
+  #   networks:
+  #     - fraud-guard-network

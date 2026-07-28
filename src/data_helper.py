@@ -5,7 +5,8 @@ from dataclasses import dataclass, field
 from urllib.request import urlretrieve
 from time import time
 import pyarrow.parquet as pq
-from sqlalchemy import create_engine, SQLAlchemyError, IntegrityError, ProgrammingError
+from sqlalchemy import create_engine
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError, ProgrammingError
 import pandas as pd
 
 PIPE_ROOT = Path(__file__).resolve().parent # Current path of the python script
