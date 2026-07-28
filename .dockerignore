@@ -1,0 +1,17 @@
+# ignore gitkeep files in the whole repository
+**.gitkeep
+
+# ignore all files and directories that are not explicitly included in the repository
+.git
+.gitignore
+.github
+__pycache__/
+.venv/
+.python-version
+
+# ruff cache
+__ruff_cache__/
+
+# dotenv data
+.env
+.env.example
