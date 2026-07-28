@@ -6,4 +6,5 @@ adbc-driver-postgresql==1.11.0
 mlflow==3.14.0
 psycopg2-binary==2.9.12
 prometheus_fastapi_instrumentator==8.0.2
-sqlalchemy==2.0.51
+prefect==3.8.0
+dbt-postgres==1.11.0

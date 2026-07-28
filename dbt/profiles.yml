@@ -1,0 +1,22 @@
+dbt_fraud_profile:
+  outputs:
+    dev:
+      dbname: "{{ env_var('POSTGRES_DB', 'fraud_detection') }}"
+      host: "{{ env_var('POSTGRES_HOST', 'db_service') }}"
+      user: "{{ env_var('POSTGRES_USER', 'postgres') }}"
+      pass: "{{ env_var('POSTGRES_PASSWORD', 'postgres') }}"
+      port: "{{ env_var('POSTGRES_PORT', '5432') | int }}"
+      schema: dbt_dev
+      threads: 4
+      type: postgres
+      
+    prod:
+      dbname: "{{ env_var('POSTGRES_DB', 'fraud_detection') }}"
+      host: "{{ env_var('POSTGRES_HOST', 'db_service') }}"
+      user: "{{ env_var('POSTGRES_USER', 'postgres') }}"
+      pass: "{{ env_var('POSTGRES_PASSWORD', 'postgres') }}"
+      port: "{{ env_var('POSTGRES_PORT', '5432') | int }}"
+      schema: dbt_prod
+      threads: 4
+      type: postgres
+  target: dev
