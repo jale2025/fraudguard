@@ -41,15 +41,14 @@ def get_data_from_postgresql_db(db_uri: str, target: str) -> pl.DataFrame:
 
 
 def get_training_data(
-        db_table_name=DBT_SCHEMA
-    ):
-
+        db_table_name=DBT_SCHEMA,
+        db_uri=DB_URI
+    ) -> pd.DataFrame:
     # Get all data of the postgresql database
     df_fraud_detection_sql = get_data_from_postgresql_db(
-        db_uri=DB_URI, 
+        db_uri=db_uri, 
         target=db_table_name
         )
-
     # return pandas df
     return df_fraud_detection_sql.to_pandas()
 
@@ -159,5 +158,3 @@ def train_model(
     }
 
     return return_vars 
-
-

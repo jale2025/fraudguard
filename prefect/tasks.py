@@ -1,10 +1,18 @@
 from src.data_helper import FileLists, data_available, parquet_to_sql, move_file, is_parquet, validate_data_files, database_url
 from prefect import task
 from pathlib import Path
-
+from train import get_training_data, train_model
+from model_registration import register_model
 
 import os
 import subprocess
+
+DBT_SCHEMA=os.environ["DBT_SCHEMA"]
+MODEL_NAME=os.environ["MODEL_NAME"]
+DEFAULT_MODEL_ALIAS=os.environ["DEFAULT_MODEL_ALIAS"]
+MLFLOW_TRACKING_URI=os.environ["MLFLOW_TRACKING_URI"]
+SEED=42
+
 
 @task
 def data_ingestion(dir_path: str | Path = os.environ["DATA_DIR_INCOMING"]) -> bool:
@@ -84,6 +92,43 @@ def dbt_build(project_dir: str = os.environ["DBT_PROJECT_DIR"], target: str = "d
 
     return result.returncode == 0
 
+@task
+def get_data_train_model(
+        db_table_name=DBT_SCHEMA,
+        target_label: str = "class",
+        test_size: float = 0.2, 
+        random_state: int = SEED,
+        num_col_to_scale: str = "amount"
+) -> dict:
+    df_train_data = get_training_data(db_table_name=db_table_name)
+    train_result = train_model(
+         df_training_data=df_train_data,
+         target_label=target_label,
+         test_size=test_size,
+         random_state=random_state,
+         num_col_to_scale=num_col_to_scale
+    )
+    return train_result
 
-# @task
-# def
+@task
+def model_registration(
+    train_result_dict: dict,
+    model_name: str = MODEL_NAME,
+    model_alias: str = DEFAULT_MODEL_ALIAS,
+    mlflow_tracking_uri: str = MLFLOW_TRACKING_URI,
+    timeout_seconds: int = 60) -> None:
+    register_model(
+        rnd_search_cv_obj=train_result_dict["rnd_search_cv_obj"],
+        training_rows=train_result_dict["training_rows"],
+        test_rows=train_result_dict["test_rows"],
+        recall_train=train_result_dict["recall_train"],
+        recall_test=train_result_dict["recall_test"],
+        input_schema=train_result_dict["input_schema"],
+        input_example=train_result_dict["input_example"],
+        model_name=model_name,
+        model_alias=model_alias,
+        mlflow_tracking_uri=mlflow_tracking_uri,
+        timeout_seconds=timeout_seconds
+    )
+    
+     
