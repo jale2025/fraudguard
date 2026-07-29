@@ -25,6 +25,7 @@ select = [
 # Exceptions (rules to be ignored)
 ignore = [
     "E501", # Ignore line length errors for long URLs or unbreakable SQL queries
+    "D100",
 ]
 
 [tool.pytest.ini_options]
