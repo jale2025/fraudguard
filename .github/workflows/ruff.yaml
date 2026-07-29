@@ -21,5 +21,5 @@ jobs:
       - name: Install & Run Ruff
         run: |
           pip install ruff
-          ruff check .
+          ruff -v check .
           ruff format --check .
