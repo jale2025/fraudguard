@@ -14,7 +14,8 @@ REPO_ROOT = PIPE_ROOT.parents[0]  # Go one level up from the pipe root
 
 
 def move_file(source_path: str | Path, destination_dir: str | Path) -> None:
-    """Move a file from source_path to destination_dir with a timestamp prefix/suffix.
+    """
+    Move a file from source_path to destination_dir with a timestamp prefix/suffix.
 
     Args:
         source_path (str | Path): Source path of the file.
@@ -36,7 +37,8 @@ def move_file(source_path: str | Path, destination_dir: str | Path) -> None:
 
 
 def data_available(dir_path: str | Path) -> bool:
-    """This function checks a file does exist in the corresponding folder.
+    """
+    This function checks a file does exist in the corresponding folder.
 
     Args:
         dir_path (str | Path, optional): Used directory to check new files. Defaults to os.environ["DATA_DIR_INCOMING"].
@@ -58,12 +60,15 @@ def data_available(dir_path: str | Path) -> bool:
 
 @dataclass
 class FileLists:
+    """Container for valid and invalid file path lists."""
+
     valid_list: list[str] = field(default_factory=list)
     invalid_list: list[str] = field(default_factory=list)
 
 
 def validate_data_files(dir_path: str | Path) -> FileLists:
-    """This function validates all files of the corresponding directory.
+    """
+    This function validates all files of the corresponding directory.
 
     Args:
         dir_path (str | Path, optional): Used directory to validate all containing files. Defaults to os.environ["DATA_DIR_INCOMING"].
@@ -88,12 +93,15 @@ def validate_data_files(dir_path: str | Path) -> FileLists:
 
 
 def is_parquet(file_path: str | Path) -> bool:
-    """Check a file is a parquet file or not.
+    """
+    Check a file is a parquet file or not.
+
     Args:
         file_path (str | Path): String or Path of the file.
 
     Returns:
         bool: Returns True/False if the file is a parquet file or not.
+
     """
     file_path = Path(file_path)
 
@@ -104,7 +112,8 @@ def is_parquet(file_path: str | Path) -> bool:
 
 
 def database_url() -> str:
-    """Return the database url from the environment variables.
+    """
+    Return the database url from the environment variables.
 
     Returns:
         str: postgres address
@@ -122,7 +131,7 @@ def database_url() -> str:
 
 
 def parquet_to_sql(file_path: str, table_name: str = "transactions") -> None:
-    """This script reads a parquet file from a given url and writes it to a postgres database."""
+    """Read a parquet file from a given url and write it to a postgres database."""
     # Check the folder of the filepath variable exist
     # If not the missing folder will be created
     Path(file_path).parent.mkdir(parents=True, exist_ok=True)
