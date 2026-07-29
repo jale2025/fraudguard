@@ -20,6 +20,8 @@ select = [
     "B",   # flake8-bugbear (Potential design flaws/bugs)
     "N",   # pep8-naming (Naming conventions)
     "D",   # pydocstyle (Docstring formatting & completeness checks)
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
 ]
 
 # Exceptions (rules to be ignored)
