@@ -21,3 +21,8 @@ select = [
 ignore = [
     "E501", # Ignore line length errors for long URLs or unbreakable SQL queries
 ]
+
+[tool.pytest.ini_options]
+pythonpath = [
+  "."
+]
