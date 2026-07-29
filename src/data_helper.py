@@ -19,6 +19,7 @@ def move_file(source_path: str | Path, destination_dir: str | Path) -> None:
     Args:
         source_path (str | Path): Source path of the file.
         destination_dir (str | Path): Destination directory.
+
     """
     src = Path(source_path)
     dst_dir = Path(destination_dir)
@@ -42,7 +43,8 @@ def data_available(dir_path: str | Path) -> bool:
 
     Returns:
         bool: A file does exist (true) or not (false).
-    """
+
+    """  # noqa: D401, D404
     # Create a path by the string
     dir_path = Path(dir_path)
 
@@ -69,7 +71,7 @@ def validate_data_files(dir_path: str | Path) -> FileLists:
     Returns:
         FileLists: A dataclass object contains the list of valid/invalid files.
 
-    """
+    """  # noqa: D401, D404
     # Create a path by the string
     dir_path = Path(dir_path)
 
@@ -86,9 +88,7 @@ def validate_data_files(dir_path: str | Path) -> FileLists:
 
 
 def is_parquet(file_path: str | Path) -> bool:
-    """
-    Check a file is a parquet file or not.
-
+    """Check a file is a parquet file or not.
     Args:
         file_path (str | Path): String or Path of the file.
 
@@ -104,6 +104,12 @@ def is_parquet(file_path: str | Path) -> bool:
 
 
 def database_url() -> str:
+    """Return the database url from the environment variables.
+
+    Returns:
+        str: postgres address
+
+    """
     user = os.environ["DB_USER"]
     password = os.environ["DB_PASSWORD"]
     host = os.environ["DB_HOST"]
@@ -117,7 +123,6 @@ def database_url() -> str:
 
 def parquet_to_sql(file_path: str, table_name: str = "transactions") -> None:
     """This script reads a parquet file from a given url and writes it to a postgres database."""
-
     # Check the folder of the filepath variable exist
     # If not the missing folder will be created
     Path(file_path).parent.mkdir(parents=True, exist_ok=True)
