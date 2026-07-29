@@ -8,6 +8,7 @@ import pandas as pd
 
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
 
+
 # Cache the loaded model so repeated monitoring traffic does not reload the same
 # MLflow artifact for every request.
 @lru_cache(maxsize=1)
@@ -33,7 +34,9 @@ def load_model(model_name, alias="production"):
     return model
 
 
-def predict(model_name, data, alias="production", mlflow_tracking_uri=MLFLOW_TRACKING_URI):
+def predict(
+    model_name, data, alias="production", mlflow_tracking_uri=MLFLOW_TRACKING_URI
+):
     """
     Predict a fraud label for the provided input data.
 

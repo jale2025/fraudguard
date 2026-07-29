@@ -43,6 +43,7 @@ class Transaction(BaseModel):
     V28: float = Field(..., examples=[1.5])
     Amount: float = Field(..., examples=[255.65])
 
+
 # The response reuses every request feature and appends the model output.
 class TransactionClassification(Transaction):
     """

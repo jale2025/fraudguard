@@ -30,15 +30,18 @@ app = FastAPI(title="Credit Card Fraud Detection API", version="0.1")
 # Expose default FastAPI request metrics on /metrics for Prometheus.
 # Instrumentator().instrument(app).expose(app)
 
+
 @app.get("/")
 def index():
     """Verify that the API is alive."""
     return {"message": "Credit Card Fraud Detection API"}
 
+
 @app.get("/health")
 def health() -> dict[str, str]:
     """Check the API liveness."""
     return {"status": "ok"}
+
 
 @app.post("/predict", response_model=TransactionClassification)
 def predict_transaction(data: Transaction) -> dict[str, Any]:
