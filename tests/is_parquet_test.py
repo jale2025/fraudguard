@@ -1,14 +1,16 @@
-from src.data_helper import is_parquet
-import pandas as pd
 from pathlib import Path
+
+import pandas as pd
 from dotenv import load_dotenv
-import os
+
+from src.data_helper import is_parquet
 
 load_dotenv()
 
 
 def test_is_parquet() -> None:
-    """Verify that a valid Parquet file is correctly identified by is_parquet.
+    """
+    Verify that a valid Parquet file is correctly identified by is_parquet.
 
     This test creates a pandas DataFrame, exports it to a Parquet file, and
     asserts that `is_parquet` returns True for the generated file.
@@ -20,7 +22,7 @@ def test_is_parquet() -> None:
     # Act
     dest_path = Path("./temp/test_data.parquet")
     dest_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     df.to_parquet(dest_path, index=False)
 
     # Assert

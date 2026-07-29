@@ -1,11 +1,15 @@
-from src.data_helper import FileLists, data_available, parquet_to_sql, move_file, is_parquet, validate_data_files, database_url
-from prefect import task
-from pathlib import Path
-from src.train import get_training_data, train_model
-from src.model_registration import register_model
-
 import os
 import subprocess
+from pathlib import Path
+
+from prefect import task
+from src.data_helper import (
+    move_file,
+    parquet_to_sql,
+    validate_data_files,
+)
+from src.model_registration import register_model
+from src.train import get_training_data, train_model
 
 DBT_SCHEMA=os.environ["DBT_SCHEMA"]
 MODEL_NAME=os.environ["MODEL_NAME"]
@@ -20,12 +24,12 @@ def data_ingestion(dir_path: str | Path) -> bool:
     Validate all incoming files and write the valid parquet files in the database.
 
     Args:
-        dir_path (str | Path, optional): Used directory to validate all containing files. Defaults to os.environ["DATA_DIR_INCOMING"].
+        dir_path (str | Path): Used directory to validate all containing files.
 
     Returns:
         bool: True if at least one parquet file was written in the database.
-    """
 
+    """
     # Create a list of all valid parque lists
     file_lists = validate_data_files(dir_path)
 
@@ -46,17 +50,16 @@ def data_ingestion(dir_path: str | Path) -> bool:
 
     # Iterate through all invalid parquet files
     for parquet_file in file_lists.invalid_list:
-    
             # Move the valid parquet file to the quarantine folder
             move_file(source_path=parquet_file, destination_dir=os.environ["DATA_DIR_QUARANTINE"])
 
     return True if counter > 0 else False
 
-    
 
 @task
 def dbt_build(project_dir: str, target: str = "dev") -> bool:
-    """prefect task to run the dbt build command
+    """
+    Prefect task to run the dbt build command.
 
     Args:
         project_dir (str, optional): dbt project directory. Defaults to os.environ["DBT_PROJECT_DIR"].
@@ -67,6 +70,7 @@ def dbt_build(project_dir: str, target: str = "dev") -> bool:
 
     Returns:
         int: The return code of the dbt build command.
+
     """
     command = [
         "dbt",
@@ -96,10 +100,24 @@ def dbt_build(project_dir: str, target: str = "dev") -> bool:
 def get_data_train_model(
         db_table_name=DBT_SCHEMA,
         target_label: str = "class",
-        test_size: float = 0.2, 
+        test_size: float = 0.2,
         random_state: int = SEED,
         num_col_to_scale: str = "amount"
 ) -> dict:
+    """
+    Fetch training data and train the model.
+
+    Args:
+        db_table_name (str): Database table name to query training data from.
+        target_label (str): Name of the target column.
+        test_size (float): Fraction of data to use for testing.
+        random_state (int): Seed for random operations.
+        num_col_to_scale (str): Numeric column name to scale.
+
+    Returns:
+        dict: Dictionary containing training results and metrics.
+
+    """
     df_train_data = get_training_data(db_table_name=db_table_name)
     train_result = train_model(
          df_training_data=df_train_data,
@@ -117,6 +135,17 @@ def model_registration(
     model_alias: str = DEFAULT_MODEL_ALIAS,
     mlflow_tracking_uri: str = MLFLOW_TRACKING_URI,
     timeout_seconds: int = 60) -> None:
+    """
+    Register the trained model in MLflow.
+
+    Args:
+        train_result_dict (dict): Dictionary produced by the training task.
+        model_name (str): Name of the MLflow model to register.
+        model_alias (str): Alias to assign to the registered model.
+        mlflow_tracking_uri (str): MLflow tracking server URI.
+        timeout_seconds (int): Timeout for registration operations.
+
+    """
     register_model(
         rnd_search_cv_obj=train_result_dict["model"],
         training_rows=train_result_dict["training_rows"],
@@ -128,7 +157,4 @@ def model_registration(
         model_name=model_name,
         model_alias=model_alias,
         mlflow_tracking_uri=mlflow_tracking_uri,
-        timeout_seconds=timeout_seconds
-    )
-    
-     
+        timeout_seconds=timeout_seconds)

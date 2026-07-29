@@ -1,11 +1,14 @@
 import os
- 
-from prefect import flow, get_run_logger
+
 from tasks import data_ingestion, dbt_build, get_data_train_model, model_registration
+
+from prefect import flow, get_run_logger
 from src.data_helper import data_available
+
 
 @flow(name="fraud_detection_pipeline")
 def fraudguard_pipeline() -> None:
+    """Execute the complete fraud detection pipeline triggered by a cron job."""
     logger = get_run_logger()
 
     # Initialize the bool variables
@@ -24,7 +27,7 @@ def fraudguard_pipeline() -> None:
     # If data ingestion has taken place, run the dbt build task
     if data_ingested:
         dbt_success = dbt_build(
-            project_dir = os.environ["DBT_PROJECT_DIR"], 
+            project_dir = os.environ["DBT_PROJECT_DIR"],
             target = "dev")
         logger.info(f"DBT build successful: {dbt_success}")
 
@@ -32,8 +35,6 @@ def fraudguard_pipeline() -> None:
     if dbt_success:
         train_result_dict = get_data_train_model()
         model_registration(train_result_dict)
-        
-        
 if __name__ == "__main__":
     fraudguard_pipeline()
     fraudguard_pipeline.serve(

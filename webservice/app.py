@@ -1,21 +1,20 @@
-"""FastAPI entrypoint for the local prediction service.
+"""
+FastAPI entrypoint for the local prediction service.
 
 This module owns the public API surface:
 - GET / for a simple info message
 - GET /health for a liveness check
-- POST /predict for model inference 
+- POST /predict for model inference
 - /metrics through prometheus-fastapi-instrumentator for service telemetry
 """
 
 import os
 from typing import Any
 
-import requests
 from data_model import Transaction, TransactionClassification
-from fastapi import FastAPI
-from prometheus_fastapi_instrumentator import Instrumentator
-from predict import predict
 from dotenv import load_dotenv
+from fastapi import FastAPI
+from predict import predict
 
 # Load dotenv
 load_dotenv()
@@ -33,16 +32,17 @@ app = FastAPI(title="Credit Card Fraud Detection API", version="0.1")
 
 @app.get("/")
 def index():
-    # Simple root route to verify the API is alive.
+    """Verify that the API is alive."""
     return {"message": "Credit Card Fraud Detection API"}
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    """Simple liveness check for the API."""
+    """Check the API liveness."""
     return {"status": "ok"}
 
 @app.post("/predict", response_model=TransactionClassification)
 def predict_transaction(data: Transaction) -> dict[str, Any]:
+    """Run model inference on a transaction and return the classification."""
     # First serve the model prediction. Monitoring should observe this request,
     # but it should not change the prediction result returned to the client.
     prediction = predict(REGISTERED_MODEL_NAME, data, DEFAULT_MODEL_ALIAS)
