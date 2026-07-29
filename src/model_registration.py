@@ -1,11 +1,9 @@
 import os
 import time
-from pathlib import Path
 
-import pandas as pd
 import mlflow
+import pandas as pd
 from mlflow import sklearn as mlflow_sklearn
-import skops.io as sio
 from mlflow.models import ModelSignature
 from mlflow.tracking import MlflowClient
 from sklearn.model_selection import RandomizedSearchCV
@@ -13,6 +11,7 @@ from sklearn.model_selection import RandomizedSearchCV
 MLFLOW_TRACKING_URI = os.environ["MLFLOW_TRACKING_URI"]
 MODEL_NAME = os.environ["MODEL_NAME"]
 DEFAULT_MODEL_ALIAS = os.environ["DEFAULT_MODEL_ALIAS"]
+
 
 def wait_for_model_version(client, model_name, version, timeout_seconds):
     """Wait until the registered model version is ready to serve."""
@@ -35,23 +34,25 @@ def wait_for_model_version(client, model_name, version, timeout_seconds):
         f"Timed out waiting for {model_name} v{version} to become READY."
     )
 
+
 def register_model(
-        rnd_search_cv_obj: RandomizedSearchCV,
-        training_rows: int,
-        test_rows: int,
-        recall_train: float,
-        recall_test: float,
-        input_schema: ModelSignature,
-        input_example: pd.DataFrame,
-        model_name: str = MODEL_NAME,
-        model_alias: str = DEFAULT_MODEL_ALIAS,
-        mlflow_tracking_uri: str = MLFLOW_TRACKING_URI,
-        timeout_seconds: int = 60
-    ) -> None:
+    rnd_search_cv_obj: RandomizedSearchCV,
+    training_rows: int,
+    test_rows: int,
+    recall_train: float,
+    recall_test: float,
+    input_schema: ModelSignature,
+    input_example: pd.DataFrame,
+    model_name: str = MODEL_NAME,
+    model_alias: str = DEFAULT_MODEL_ALIAS,
+    mlflow_tracking_uri: str = MLFLOW_TRACKING_URI,
+    timeout_seconds: int = 60,
+) -> None:
     """
     Register the best model in MLflow and promote it to production if it outperforms the current production model.
 
     Args:
+        rnd_search_cv_obj (RandomizedSearchCV): Randomized search object containing the best estimator.
         training_rows (int): Number of rows in the training set.
         test_rows (int): Number of rows in the test set.
         recall_train (float): Recall metric for the training set.
@@ -62,6 +63,7 @@ def register_model(
         model_alias (str): Alias for the registered model.
         mlflow_tracking_uri (str): MLflow tracking URI.
         timeout_seconds (int): Timeout in seconds
+
     """
     # Set the mlflow tracking uri
     mlflow.set_tracking_uri(mlflow_tracking_uri)
@@ -77,7 +79,6 @@ def register_model(
 
     # Start running the workflow
     with mlflow.start_run(run_name="fraud_detection_model") as run:
-
         # Logging of workflow parameters
         mlflow.log_param("training_rows", training_rows)
         mlflow.log_param("test_rows", test_rows)
@@ -108,10 +109,7 @@ def register_model(
     # the API at the new version.
 
     # Register the model and all corresponding meta data and get the registration object back
-    registration = mlflow.register_model(
-        model_uri=model_uri, 
-        name=model_name
-        )
+    registration = mlflow.register_model(model_uri=model_uri, name=model_name)
 
     # Get the model version of the current run
     model_version = wait_for_model_version(
@@ -126,23 +124,24 @@ def register_model(
 
     try:
         # Try to retrieve the current production model version using the alias
-        prod_model_version = client.get_model_version_by_alias(name=model_name, alias=model_alias)
+        prod_model_version = client.get_model_version_by_alias(
+            name=model_name, alias=model_alias
+        )
         prod_run = client.get_run(str(prod_model_version.run_id))
-        
+
         # Retrieve the test_recall metric logged in that run
         recall_prod = prod_run.data.metrics.get("test_recall")
         print(
             f"Current production model (v{prod_model_version.version}) "
             f"with Test Recall: {recall_prod:.4f}"
         )
-        
+
     except Exception:
-        # Triggered if no model currently holds the 'production' alias 
+        # Triggered if no model currently holds the 'production' alias
         print(f"No existing production model found with alias '{model_alias}'.")
 
     # Evaluate if the newly trained model outperforms the current production baseline
     if recall_prod is None or recall_test > recall_prod:
-        
         # # Ensure the destination folder exists
         # output_dir = Path("models")
         # output_dir.mkdir(parents=True, exist_ok=True)
@@ -150,12 +149,12 @@ def register_model(
 
         # # Save the best pipeline/estimator as a .skops file
         # sio.dump(rnd_search_cv_obj.best_estimator_, skops_file_path)
-        
+
         # Promote the new model version to production in MLflow
         client.set_registered_model_alias(
             name=model_name, alias=model_alias, version=model_version.version
         )
-        
+
         prev_score_str = "None" if recall_prod is None else f"{recall_prod:.4f}"
         print(
             f"NEW BEST MODEL! Test Recall improved from "
@@ -163,7 +162,7 @@ def register_model(
             # f"Saved artifact locally at: {skops_file_path}\n"
             f"Updated MLflow alias '{model_alias}' -> Version {model_version.version}."
         )
-        
+
     else:
         print(
             f"No improvement. Current Test Recall ({recall_test:.4f}) "

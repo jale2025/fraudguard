@@ -1,24 +1,26 @@
 import os
-from pathlib import Path
 import shutil
 from dataclasses import dataclass, field
-from urllib.request import urlretrieve
+from pathlib import Path
 from time import time
+
+import pandas as pd
 import pyarrow.parquet as pq
 from sqlalchemy import create_engine
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError, ProgrammingError
-import pandas as pd
+from sqlalchemy.exc import IntegrityError, ProgrammingError, SQLAlchemyError
 
-PIPE_ROOT = Path(__file__).resolve().parent # Current path of the python script
-REPO_ROOT = PIPE_ROOT.parents[0] # Go one level up from the pipe root
+PIPE_ROOT = Path(__file__).resolve().parent  # Current path of the python script
+REPO_ROOT = PIPE_ROOT.parents[0]  # Go one level up from the pipe root
 
 
 def move_file(source_path: str | Path, destination_dir: str | Path) -> None:
-    """Move a file from source_path to destination_dir with a timestamp prefix/suffix.
-    
+    """
+    Move a file from source_path to destination_dir with a timestamp prefix/suffix.
+
     Args:
         source_path (str | Path): Source path of the file.
         destination_dir (str | Path): Destination directory.
+
     """
     src = Path(source_path)
     dst_dir = Path(destination_dir)
@@ -34,7 +36,7 @@ def move_file(source_path: str | Path, destination_dir: str | Path) -> None:
     shutil.move(src, destination_file_path)
 
 
-def data_available(dir_path: str | Path = os.environ["DATA_DIR_INCOMING"]) -> bool: 
+def data_available(dir_path: str | Path) -> bool:
     """
     This function checks a file does exist in the corresponding folder.
 
@@ -43,8 +45,8 @@ def data_available(dir_path: str | Path = os.environ["DATA_DIR_INCOMING"]) -> bo
 
     Returns:
         bool: A file does exist (true) or not (false).
-    """
 
+    """  # noqa: D401, D404
     # Create a path by the string
     dir_path = Path(dir_path)
 
@@ -55,12 +57,16 @@ def data_available(dir_path: str | Path = os.environ["DATA_DIR_INCOMING"]) -> bo
     # Check a file does exist in the folder
     return any(item.is_file() for item in dir_path.iterdir())
 
+
 @dataclass
 class FileLists:
+    """Container for valid and invalid file path lists."""
+
     valid_list: list[str] = field(default_factory=list)
     invalid_list: list[str] = field(default_factory=list)
 
-def validate_data_files(dir_path: str | Path = os.environ["DATA_DIR_INCOMING"]) -> FileLists:
+
+def validate_data_files(dir_path: str | Path) -> FileLists:
     """
     This function validates all files of the corresponding directory.
 
@@ -69,8 +75,8 @@ def validate_data_files(dir_path: str | Path = os.environ["DATA_DIR_INCOMING"]) 
 
     Returns:
         FileLists: A dataclass object contains the list of valid/invalid files.
-    """
 
+    """  # noqa: D401, D404
     # Create a path by the string
     dir_path = Path(dir_path)
 
@@ -78,14 +84,12 @@ def validate_data_files(dir_path: str | Path = os.environ["DATA_DIR_INCOMING"]) 
 
     # Iterate through all data files
     for item in dir_path.iterdir():
-
         if is_parquet(item):
             file_lists.valid_list.append(str(item))
         else:
             file_lists.invalid_list.append(str(item))
 
     return file_lists
-        
 
 
 def is_parquet(file_path: str | Path) -> bool:
@@ -97,6 +101,7 @@ def is_parquet(file_path: str | Path) -> bool:
 
     Returns:
         bool: Returns True/False if the file is a parquet file or not.
+
     """
     file_path = Path(file_path)
 
@@ -107,18 +112,26 @@ def is_parquet(file_path: str | Path) -> bool:
 
 
 def database_url() -> str:
+    """
+    Return the database url from the environment variables.
+
+    Returns:
+        str: postgres address
+
+    """
     user = os.environ["DB_USER"]
     password = os.environ["DB_PASSWORD"]
     host = os.environ["DB_HOST"]
     port = os.environ["DB_PORT"]
     db_name = os.environ["DB_DATABASE"]
-    print(f"Database URL the data gets ingested to: postgresql://{user}:{password}@{host}:{port}/{db_name}")
+    print(
+        f"Database URL the data gets ingested to: postgresql://{user}:{password}@{host}:{port}/{db_name}"
+    )
     return f"postgresql://{user}:{password}@{host}:{port}/{db_name}"
 
 
-def parquet_to_sql(file_path: str, table_name: str="transactions") -> None:
-    """This script reads a parquet file from a given url and writes it to a postgres database."""
-
+def parquet_to_sql(file_path: str, table_name: str = "transactions") -> None:
+    """Read a parquet file from a given url and write it to a postgres database."""
     # Check the folder of the filepath variable exist
     # If not the missing folder will be created
     Path(file_path).parent.mkdir(parents=True, exist_ok=True)
@@ -139,16 +152,20 @@ def parquet_to_sql(file_path: str, table_name: str="transactions") -> None:
     for batch_idx, batch in enumerate(parquet_file.iter_batches(batch_size=100000)):
         start_time = time()
         batch_df = batch.to_pandas()
-        
+
         try:
             batch_df.to_sql(f"{table_name}", engine, if_exists="append", index=False)
         except IntegrityError as e:
             # Triggered by duplicate keys or NOT NULL constraint violations
-            print(f"Integrity Error during batch insertion (Batch {batch_idx}): {e.orig}")
+            print(
+                f"Integrity Error during batch insertion (Batch {batch_idx}): {e.orig}"
+            )
             raise e
         except ProgrammingError as e:
             # Triggered by schema mismatches (e.g., missing column in SQL table)
-            print(f"Schema Error (e.g., column does not exist in target SQL table): {e.orig}")
+            print(
+                f"Schema Error (e.g., column does not exist in target SQL table): {e.orig}"
+            )
             raise e
         except SQLAlchemyError as e:
             # General database errors (e.g., connection lost)
@@ -170,13 +187,3 @@ if __name__ == "__main__":
         table_name="transactions",
         file_path=str(REPO_ROOT / "data" / "base_dataset.parquet"),
     )
-
-
-
-
-
-
-
-
-
-

@@ -1,28 +1,41 @@
 [tool.ruff]
-# Target Python version of your project
+# Target Python version
 target-version = "py311"
 
-# Maximum line length (standard for many teams, slightly more generous than strict PEP8)
+# Maximum line length 
 line-length = 88
 
+exclude = [
+    "*.ipynb",
+    "notebooks",
+]
+
 [tool.ruff.lint]
-# 1. SELECTION OF RULE SETS
+# Rules to be considered
 select = [
-    "E",   # pycodestyle Errors (Standard PEP8 formatting errors)
-    "W",   # pycodestyle Warnings (Standard PEP8 formatting warnings)
-    "F",   # Pyflakes (Logical errors, unused variables/imports – extremely important!)
-    "I",   # isort (Automatic sorting and grouping of imports)
-    "B",   # flake8-bugbear (Detects potential design flaws and probable bugs)
-    "C90", # mccabe (Checks code complexity to keep functions readable)
-    "N",   # pep8-naming (Ensures variables, classes, and functions follow naming conventions)
+    "E",   # pycodestyle Errors
+    "W",   # pycodestyle Warnings
+    "F",   # Pyflakes (Logical errors, unused variables/imports)
+    "I",   # isort (Automatic sorting of imports)
+    "B",   # flake8-bugbear (Potential design flaws/bugs)
+    "N",   # pep8-naming (Naming conventions)
+    "D",   # pydocstyle (Docstring formatting & completeness checks)
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
 ]
 
-# 2. EXCEPTIONS (Rules to be ignored)
+# Exceptions (rules to be ignored)
 ignore = [
-    "E501", # Ignore line length errors (Ruff's formatter handles code layout automatically)
+    "E501", # Ignore line length errors for long URLs or unbreakable SQL queries
+    "D100",
+    "D203",
+    "D212",
 ]
 
-# 3. ADDITIONAL SETTINGS
-[tool.ruff.lint.mccabe]
-# Maximum cyclomatic complexity allowed per function. Anything above 10 triggers an error.
-max-complexity = 10
+[tool.pytest.ini_options]
+pythonpath = [
+  "."
+]
+
+[tool.ruff.lint.per-file-ignores]
+"*.ipynb" = ["ALL"]

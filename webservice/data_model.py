@@ -2,8 +2,16 @@
 
 from pydantic import BaseModel, Field
 
+
 # This model describes the JSON body accepted by POST /predict.
 class Transaction(BaseModel):
+    """
+    Pydantic model describing a single transaction's features used for prediction.
+
+    Attributes correspond to the anonymized V1..V28 features, the transaction Time,
+    and Amount fields expected by the prediction API.
+    """
+
     Time: float = Field(..., examples=[2.0])
     V1: float = Field(..., examples=[-1.5])
     V2: float = Field(..., examples=[1.3])
@@ -35,6 +43,14 @@ class Transaction(BaseModel):
     V28: float = Field(..., examples=[1.5])
     Amount: float = Field(..., examples=[255.65])
 
+
 # The response reuses every request feature and appends the model output.
 class TransactionClassification(Transaction):
+    """
+    Response model including the predicted class for a transaction.
+
+    Inherits all transaction features from Transaction and appends a
+    `prediction` field containing the model's integer class output.
+    """
+
     prediction: int
