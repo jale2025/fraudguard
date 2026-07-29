@@ -34,7 +34,7 @@ def move_file(source_path: str | Path, destination_dir: str | Path) -> None:
     shutil.move(src, destination_file_path)
 
 
-def data_available(dir_path: str | Path = os.environ["DATA_DIR_INCOMING"]) -> bool: 
+def data_available(dir_path: str | Path) -> bool: 
     """
     This function checks a file does exist in the corresponding folder.
 
@@ -60,7 +60,7 @@ class FileLists:
     valid_list: list[str] = field(default_factory=list)
     invalid_list: list[str] = field(default_factory=list)
 
-def validate_data_files(dir_path: str | Path = os.environ["DATA_DIR_INCOMING"]) -> FileLists:
+def validate_data_files(dir_path: str | Path) -> FileLists:
     """
     This function validates all files of the corresponding directory.
 

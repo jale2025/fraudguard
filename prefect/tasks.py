@@ -15,7 +15,7 @@ SEED=42
 
 
 @task
-def data_ingestion(dir_path: str | Path = os.environ["DATA_DIR_INCOMING"]) -> bool:
+def data_ingestion(dir_path: str | Path) -> bool:
     """
     Validate all incoming files and write the valid parquet files in the database.
 
@@ -55,7 +55,7 @@ def data_ingestion(dir_path: str | Path = os.environ["DATA_DIR_INCOMING"]) -> bo
     
 
 @task
-def dbt_build(project_dir: str = os.environ["DBT_PROJECT_DIR"], target: str = "dev") -> bool:
+def dbt_build(project_dir: str, target: str = "dev") -> bool:
     """prefect task to run the dbt build command
 
     Args:
