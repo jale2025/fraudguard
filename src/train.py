@@ -165,8 +165,7 @@ def train_model(
 
     return_vars = {
         "model": rnd_search_cv,
-        "recall_train": recall_train,
-        "recall_test": recall_test,
+        "recall_train": recall_train, "recall_test": recall_test,
         "training_rows": len(x_train),
         "test_rows": len(x_test),
         "input_schema": input_schema,
