@@ -5,6 +5,11 @@ target-version = "py311"
 # Maximum line length 
 line-length = 88
 
+exclude = [
+    "*.ipynb",
+    "notebooks/",
+]
+
 [tool.ruff.lint]
 # Rules to be considered
 select = [
@@ -25,8 +30,4 @@ ignore = [
 [tool.pytest.ini_options]
 pythonpath = [
   "."
-]
-
-exclude = [
-    "*.ipynb",
 ]
