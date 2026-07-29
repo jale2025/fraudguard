@@ -12,6 +12,7 @@ MLFLOW_TRACKING_URI = os.environ["MLFLOW_TRACKING_URI"]
 MODEL_NAME = os.environ["MODEL_NAME"]
 DEFAULT_MODEL_ALIAS = os.environ["DEFAULT_MODEL_ALIAS"]
 
+
 def wait_for_model_version(client, model_name, version, timeout_seconds):
     """Wait until the registered model version is ready to serve."""
     # MLflow registration can finish asynchronously depending on the backend.
@@ -33,19 +34,20 @@ def wait_for_model_version(client, model_name, version, timeout_seconds):
         f"Timed out waiting for {model_name} v{version} to become READY."
     )
 
+
 def register_model(
-        rnd_search_cv_obj: RandomizedSearchCV,
-        training_rows: int,
-        test_rows: int,
-        recall_train: float,
-        recall_test: float,
-        input_schema: ModelSignature,
-        input_example: pd.DataFrame,
-        model_name: str = MODEL_NAME,
-        model_alias: str = DEFAULT_MODEL_ALIAS,
-        mlflow_tracking_uri: str = MLFLOW_TRACKING_URI,
-        timeout_seconds: int = 60
-    ) -> None:
+    rnd_search_cv_obj: RandomizedSearchCV,
+    training_rows: int,
+    test_rows: int,
+    recall_train: float,
+    recall_test: float,
+    input_schema: ModelSignature,
+    input_example: pd.DataFrame,
+    model_name: str = MODEL_NAME,
+    model_alias: str = DEFAULT_MODEL_ALIAS,
+    mlflow_tracking_uri: str = MLFLOW_TRACKING_URI,
+    timeout_seconds: int = 60,
+) -> None:
     """
     Register the best model in MLflow and promote it to production if it outperforms the current production model.
 
@@ -77,7 +79,6 @@ def register_model(
 
     # Start running the workflow
     with mlflow.start_run(run_name="fraud_detection_model") as run:
-
         # Logging of workflow parameters
         mlflow.log_param("training_rows", training_rows)
         mlflow.log_param("test_rows", test_rows)
@@ -108,10 +109,7 @@ def register_model(
     # the API at the new version.
 
     # Register the model and all corresponding meta data and get the registration object back
-    registration = mlflow.register_model(
-        model_uri=model_uri,
-        name=model_name
-        )
+    registration = mlflow.register_model(model_uri=model_uri, name=model_name)
 
     # Get the model version of the current run
     model_version = wait_for_model_version(
@@ -126,7 +124,9 @@ def register_model(
 
     try:
         # Try to retrieve the current production model version using the alias
-        prod_model_version = client.get_model_version_by_alias(name=model_name, alias=model_alias)
+        prod_model_version = client.get_model_version_by_alias(
+            name=model_name, alias=model_alias
+        )
         prod_run = client.get_run(str(prod_model_version.run_id))
 
         # Retrieve the test_recall metric logged in that run
@@ -142,7 +142,6 @@ def register_model(
 
     # Evaluate if the newly trained model outperforms the current production baseline
     if recall_prod is None or recall_test > recall_prod:
-
         # # Ensure the destination folder exists
         # output_dir = Path("models")
         # output_dir.mkdir(parents=True, exist_ok=True)

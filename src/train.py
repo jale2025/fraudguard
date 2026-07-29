@@ -20,6 +20,7 @@ DBT_SCHEMA = os.environ["DBT_SCHEMA"]
 
 SEED = 42
 
+
 def get_data_from_postgresql_db(db_uri: str, target: str) -> pl.DataFrame:
     """
     Read data from the postgresql database.
@@ -35,15 +36,12 @@ def get_data_from_postgresql_db(db_uri: str, target: str) -> pl.DataFrame:
     df = pl.read_database_uri(
         query=f"SELECT * FROM dbt_{target}_data_science.fct_training_data",
         uri=db_uri,
-        engine="adbc"
+        engine="adbc",
     )
     return df
 
 
-def get_training_data(
-        db_table_name=DBT_SCHEMA,
-        db_uri=DB_URI
-    ) -> pd.DataFrame:
+def get_training_data(db_table_name=DBT_SCHEMA, db_uri=DB_URI) -> pd.DataFrame:
     """
     Load training data from PostgreSQL and return it as a pandas DataFrame.
 
@@ -57,19 +55,19 @@ def get_training_data(
     """
     # Get all data of the postgresql database
     df_fraud_detection_sql = get_data_from_postgresql_db(
-        db_uri=db_uri,
-        target=db_table_name
-        )
+        db_uri=db_uri, target=db_table_name
+    )
     # return pandas df
     return df_fraud_detection_sql.to_pandas()
 
 
 def train_model(
-        df_training_data: pd.DataFrame,
-        target_label: str = "class",
-        test_size: float = 0.2,
-        random_state: int = SEED,
-        num_col_to_scale: str = "amount") -> dict:
+    df_training_data: pd.DataFrame,
+    target_label: str = "class",
+    test_size: float = 0.2,
+    random_state: int = SEED,
+    num_col_to_scale: str = "amount",
+) -> dict:
     """
     Train and evaluate a fraud detection model.
 
@@ -96,29 +94,33 @@ def train_model(
     # Define the preprocessing object
     preprocessing = ColumnTransformer(
         transformers=[
-            ('num_scaler', StandardScaler(), [num_col_to_scale]),
+            ("num_scaler", StandardScaler(), [num_col_to_scale]),
         ],
-        remainder='passthrough',
+        remainder="passthrough",
     )
 
     # Define the pipeline
     pipeline = Pipeline(
         steps=[
-            ('preprocessing', preprocessing),
-            ('classifier', RandomForestClassifier(
-                n_estimators=100,
-                class_weight='balanced',
-                random_state=random_state,
-                n_jobs=-1)),
+            ("preprocessing", preprocessing),
+            (
+                "classifier",
+                RandomForestClassifier(
+                    n_estimators=100,
+                    class_weight="balanced",
+                    random_state=random_state,
+                    n_jobs=-1,
+                ),
+            ),
         ]
     )
 
     # Set the parameter for the randomized search cv
     params = {
-        'classifier__n_estimators': [150, 200],
-        'classifier__max_depth': [10, 20],
-        'classifier__min_samples_split': [2, 5],
-        'classifier__max_features': ['sqrt', 'log2']
+        "classifier__n_estimators": [150, 200],
+        "classifier__max_depth": [10, 20],
+        "classifier__min_samples_split": [2, 5],
+        "classifier__max_features": ["sqrt", "log2"],
     }
 
     # Define the object for the cross validation
@@ -129,11 +131,11 @@ def train_model(
         estimator=pipeline,
         param_distributions=params,
         n_iter=1,
-        scoring='recall',
+        scoring="recall",
         cv=cv,
         random_state=random_state,
         n_jobs=-1,
-        verbose=2
+        verbose=2,
     )
 
     # Fit the model
@@ -146,19 +148,9 @@ def train_model(
     pred_y_test = rnd_search_cv.predict(x_test)
 
     # Calculate the recall score for the train and test dataset
-    recall_train = float(
-        recall_score(
-            y_train,
-            pred_y_train
-        )
-    )
+    recall_train = float(recall_score(y_train, pred_y_train))
 
-    recall_test = float(
-        recall_score(
-            y_test,
-            pred_y_test
-        )
-    )
+    recall_test = float(recall_score(y_test, pred_y_test))
 
     # Print process information and metrics
     print(
@@ -178,7 +170,7 @@ def train_model(
         "training_rows": len(x_train),
         "test_rows": len(x_test),
         "input_schema": input_schema,
-        "input_example": input_example
+        "input_example": input_example,
     }
 
     return return_vars
