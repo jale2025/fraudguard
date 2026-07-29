@@ -18,8 +18,8 @@ def test_is_parquet() -> None:
     df = pd.DataFrame(data_dict)
 
     # Act
-    dest_path = Path("./temp/test_data.parquet") 
-    dest_path.mkdir(parents=True, exist_ok=True)
+    dest_path = Path("./temp/test_data.parquet")
+    dest_path.parent.mkdir(parents=True, exist_ok=True)
     
     df.to_parquet(dest_path, index=False)
 
