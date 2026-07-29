@@ -1,6 +1,9 @@
 from src.data_helper import is_parquet
 import pandas as pd
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def test_is_parquet() -> None:
