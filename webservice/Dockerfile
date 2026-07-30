@@ -6,9 +6,11 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /webservice
 
-COPY . /webservice
+COPY requirements.txt /webservice/requirements.txt
 
 RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . /webservice
 
 EXPOSE 8000
 

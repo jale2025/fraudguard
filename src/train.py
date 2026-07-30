@@ -34,7 +34,7 @@ def get_data_from_postgresql_db(db_uri: str, target: str) -> pl.DataFrame:
 
     """
     df = pl.read_database_uri(
-        query=f"SELECT * FROM dbt_{target}_data_science.fct_training_data",
+        query=f"SELECT * FROM dbt_{target}_data_science.fct_training_data ORDER BY elapsed_sec, pc_1",
         uri=db_uri,
         engine="adbc",
     )
