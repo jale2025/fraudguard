@@ -10,7 +10,7 @@ This module owns the public API surface:
 
 import io
 import os
-from typing import Any
+from typing import Annotated, Any
 
 import pandas as pd
 from data_model import (
@@ -111,9 +111,12 @@ def predict_transaction_known_label(data: TransactionKnownLabel) -> dict[str, An
     response_model=list[TransactionClassificationUnknownLabel],
 )
 async def predict_transactions_unknown_label(
-    file: UploadFile = File(
-        description="Parquet file containing the transactions with unknown labels."
-    ),
+    file: Annotated[
+        UploadFile,
+        File(
+            description="Parquet file containing the transactions with unknown labels."
+        ),
+    ],
 ) -> list[dict[str, Any]]:
     """Run model inference on a uploaded Parquet file without ground truth."""
     if not file.filename.endswith(".parquet"):
@@ -157,9 +160,10 @@ async def predict_transactions_unknown_label(
     response_model=list[TransactionClassificationKnownLabel],
 )
 async def predict_transactions_known_label(
-    file: UploadFile = File(
-        description="Parquet file containing the transactions with known labels."
-    ),
+    file: Annotated[
+        UploadFile,
+        File(description="Parquet file containing the transactions with known labels."),
+    ],
 ) -> list[dict[str, Any]]:
     if not file.filename.endswith(".parquet"):
         raise HTTPException(
