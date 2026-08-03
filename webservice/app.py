@@ -7,13 +7,19 @@ This module owns the public API surface:
 - POST /predict for model inference
 - /metrics through prometheus-fastapi-instrumentator for service telemetry
 """
-
+import io
 import os
 from typing import Any
 
-from data_model import Transaction, TransactionClassification
+import pandas as pd
+from data_model import (
+    TransactionClassificationKnownLabel,
+    TransactionClassificationUnknownLabel,
+    TransactionKnownLabel,
+    TransactionUnknownLabel,
+)
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from predict import predict
 
 # Load dotenv
@@ -43,8 +49,8 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.post("/predict", response_model=TransactionClassification)
-def predict_transaction(data: Transaction) -> dict[str, Any]:
+@app.post("/predict_single_unknown_label", response_model=TransactionClassificationUnknownLabel)
+def predict_transaction_unknown_label(data: TransactionUnknownLabel) -> dict[str, Any]:
     """Run model inference on a transaction and return the classification."""
     # First serve the model prediction. Monitoring should observe this request,
     # but it should not change the prediction result returned to the client.
@@ -74,4 +80,92 @@ def predict_transaction(data: Transaction) -> dict[str, Any]:
     # Return the same payload shape used for monitoring so users can
     # compare what the client sees with what Evidently receives.
     print(f"Returning prediction: {prediction}")
-    return TransactionClassification(**data.model_dump(), prediction=prediction)
+    return TransactionClassificationUnknownLabel(**data.model_dump(), prediction=prediction)
+
+
+@app.post("/predict_single_known_label", response_model=TransactionClassificationKnownLabel)
+def predict_transaction_known_label(data: TransactionKnownLabel) -> dict[str, Any]:
+    """Run model inference on a transaction and return the classification."""
+    # First serve the model prediction. Monitoring should observe this request,
+    # but it should not change the prediction result returned to the client.
+    prediction = predict(REGISTERED_MODEL_NAME, data, DEFAULT_MODEL_ALIAS)
+
+    # Return the same payload shape used for monitoring so users can
+    # compare what the client sees with what Evidently receives.
+    print(f"Returning prediction: {prediction}")
+    return TransactionClassificationKnownLabel(**data.model_dump(), prediction=prediction)
+
+@app.post("/predict_file_unknown_label", response_model=list[TransactionClassificationUnknownLabel])
+async def predict_transactions_unknown_label(file: UploadFile = File(description="Parquet-Datei mit Transaktionsdaten für die Batch-Inferenz")) -> list[dict[str, Any]]:
+    """Run model inference on a uploaded Parquet file without ground truth."""
+    if not file.filename.endswith(".parquet"):
+            raise HTTPException(status_code=400, detail="Only .parquet files are supported.")
+    try:
+            contents = await file.read()
+            df = pd.read_parquet(io.BytesIO(contents))
+
+            # # Column mapping for the time, amount and the 'V' columns
+            # column_mapping = {"Time": "elapsed_sec", "Amount": "amount"}
+            # column_mapping.update({f"V{i}": f"pc_{i}" for i in range(1, 29)})
+
+            # # Remove the class column if the column should exist unexpectedly
+            # for col in ["Class", "class", "target_class"]:
+            #     if col in df.columns:
+            #         df = df.drop(columns=[col])
+
+            # # Rename the columns
+            # df = df.rename(columns=column_mapping)
+
+            # Apply the predict function on the df
+            predictions = predict(REGISTERED_MODEL_NAME, df, DEFAULT_MODEL_ALIAS)
+
+            # Add another column for the predictions
+            df["prediction"] = predictions
+
+            # Return the dict
+            return df.to_dict(orient="records")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing Parquet file: {str(e)}")
+
+
+@app.post("/predict_file_known_label", response_model=list[TransactionClassificationKnownLabel])
+async def predict_transactions_known_label(
+    file: UploadFile = File(description="Parquet-Datei mit Transaktionsdaten und Target-Label")
+) -> list[dict[str, Any]]:
+    if not file.filename.endswith(".parquet"):
+        raise HTTPException(status_code=400, detail="Only .parquet files are supported.")
+    try:
+        contents = await file.read()
+        df = pd.read_parquet(io.BytesIO(contents))
+
+        df = df.iloc[:50].copy()
+
+        df_class_col = df["Class"]
+
+        # # Column mapping for the time, amount and the 'V' columns
+        # column_mapping = {"Time": "elapsed_sec", "Amount": "amount"}
+        # column_mapping.update({f"V{i}": f"pc_{i}" for i in range(1, 29)})
+
+        # # Column mapping for the 'class' mapping
+        # if "Class" in df.columns:
+        #     column_mapping["Class"] = "class"
+
+        # # Rename the columns
+        # df = df.rename(columns=column_mapping)
+
+        print(f"COLUMNS = {df.columns}")
+
+        # Apply the predict function on the df
+        predictions = predict(REGISTERED_MODEL_NAME, df, DEFAULT_MODEL_ALIAS)
+
+        # Add another column for the predictions
+        df["prediction"] = predictions
+
+        df["class"] = df_class_col
+
+        # Return the dict
+        return df.to_dict(orient="records")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing Parquet file: {str(e)}")

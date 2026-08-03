@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 
 # This model describes the JSON body accepted by POST /predict.
-class Transaction(BaseModel):
+class TransactionUnknownLabel(BaseModel):
     """
     Pydantic model describing a single transaction's features used for prediction.
 
@@ -43,9 +43,32 @@ class Transaction(BaseModel):
     pc_28: float = Field(..., examples=[1.5])
     amount: float = Field(..., examples=[255.65])
 
+class TransactionKnownLabel(TransactionUnknownLabel):
+    """
+    Pydantic model describing a single transaction's features used for prediction.
+
+    Attributes correspond to the anonymized V1..V28 features, the transaction Time,
+    and Amount fields expected by the prediction API.
+    """
+
+    # 'target_class' im Python-Code, spiegelt 'Class' im JSON/Parquet wider
+    target_class: int = Field(..., alias="class", examples=[0])
+
+    # Erlaubt den Zugriff sowohl über t.target_class als auch per Field-Name/Alias
+    model_config = {"populate_by_name": True}
 
 # The response reuses every request feature and appends the model output.
-class TransactionClassification(Transaction):
+class TransactionClassificationKnownLabel(TransactionKnownLabel):
+    """
+    Response model including the predicted class for a transaction.
+
+    Inherits all transaction features from Transaction and appends a
+    `prediction` field containing the model's integer class output.
+    """
+
+    prediction: int
+
+class TransactionClassificationUnknownLabel(TransactionUnknownLabel):
     """
     Response model including the predicted class for a transaction.
 

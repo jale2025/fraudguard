@@ -5,6 +5,7 @@ from functools import lru_cache
 
 import mlflow
 import pandas as pd
+from data_model import TransactionKnownLabel, TransactionUnknownLabel
 
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
 
@@ -35,7 +36,10 @@ def load_model(model_name, alias="production"):
 
 
 def predict(
-    model_name, data, alias="production", mlflow_tracking_uri=MLFLOW_TRACKING_URI
+    model_name,
+    data: TransactionUnknownLabel | TransactionKnownLabel | pd.DataFrame,
+    alias="production",
+    mlflow_tracking_uri=MLFLOW_TRACKING_URI,
 ):
     """
     Predict a fraud label for the provided input data.
@@ -65,12 +69,35 @@ def predict(
 
     # Convert the Pydantic request object into the tabular shape expected by
     # mlflow.pyfunc models.
-    model_input = pd.DataFrame([data.model_dump()]).astype(float)
+    if isinstance(data, pd.DataFrame):
+        df_transactions_input = data.copy()
+    else:
+        df_transactions_input = pd.DataFrame([data.model_dump()])
     print("Load model...")
+
+    # Remove the target column
+    for target_col in ["class", "Class", "target_class"]:
+        if target_col in df_transactions_input.columns:
+            df_transactions_input = df_transactions_input.drop(columns=[target_col])
+
+    # Column mapping for the time, amount and the 'V' columns
+    column_mapping = {"Time": "elapsed_sec", "Amount": "amount"}
+    column_mapping.update({f"V{i}": f"pc_{i}" for i in range(1, 29)})
+
+    # Rename the columns
+    df_transactions_input = df_transactions_input.rename(columns=column_mapping)
+
+    df_transactions_input = df_transactions_input.astype(float)
 
     # The cached loader keeps repeated monitoring traffic fast. Without it, the
     # API would reopen the same model artifact for every single request.
     model = load_model(model_name, alias)
-    print("Making prediction with data: ", model_input.head())
-    prediction = model.predict(model_input)
-    return int(prediction[0])
+    print("Making prediction with data: ", df_transactions_input.head())
+    predictions = model.predict(df_transactions_input)
+
+    results = [int(pred) for pred in predictions]
+
+    if isinstance(data, (pd.DataFrame, list)):
+        return results
+    # Für ein einzelnes Pydantic-Objekt nur den einzelnen Integer zurückgeben
+    return results[0]
