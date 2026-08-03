@@ -154,7 +154,9 @@ def parquet_to_sql(file_path: str, table_name: str = "transactions") -> None:
         batch_df = batch.to_pandas()
 
         try:
-            batch_df.to_sql(f"{table_name}", engine, if_exists="append", index=False, schema="raw")
+            batch_df.to_sql(
+                f"{table_name}", engine, if_exists="append", index=False, schema="raw"
+            )
         except IntegrityError as e:
             # Triggered by duplicate keys or NOT NULL constraint violations
             print(
