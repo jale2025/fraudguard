@@ -30,14 +30,12 @@ load_dotenv()
 MLFLOW_TRACKING_URI = os.environ["MLFLOW_TRACKING_URI"]
 REGISTERED_MODEL_NAME = os.environ["MODEL_NAME"]
 DEFAULT_MODEL_ALIAS = os.environ["DEFAULT_MODEL_ALIAS"]
-# MONITORING_URL = os.environ["MONITORING_URL"]
 
 app = FastAPI(title="Credit Card Fraud Detection API", version="0.1")
 
+
 # Expose default FastAPI request metrics on /metrics for Prometheus.
 # Instrumentator().instrument(app).expose(app)
-
-
 @app.get("/")
 def index():
     """Verify that the API is alive."""
@@ -165,6 +163,7 @@ async def predict_transactions_known_label(
         File(description="Parquet file containing the transactions with known labels."),
     ],
 ) -> list[dict[str, Any]]:
+    """Run model inference on an uploaded Parquet file with known labels."""
     if not file.filename.endswith(".parquet"):
         raise HTTPException(
             status_code=400, detail="Only .parquet files are supported."
@@ -208,4 +207,4 @@ async def predict_transactions_known_label(
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error processing Parquet file: {str(e)}"
-        )
+        ) from e
