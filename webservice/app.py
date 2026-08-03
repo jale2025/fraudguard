@@ -96,25 +96,26 @@ def predict_transaction_known_label(data: TransactionKnownLabel) -> dict[str, An
     return TransactionClassificationKnownLabel(**data.model_dump(), prediction=prediction)
 
 @app.post("/predict_file_unknown_label", response_model=list[TransactionClassificationUnknownLabel])
-async def predict_transactions_unknown_label(file: UploadFile = File(description="Parquet-Datei mit Transaktionsdaten für die Batch-Inferenz")) -> list[dict[str, Any]]:
+async def predict_transactions_unknown_label(file: UploadFile = File(description="Parquet file containing the transactions with unknown labels.")) -> list[dict[str, Any]]:
     """Run model inference on a uploaded Parquet file without ground truth."""
     if not file.filename.endswith(".parquet"):
             raise HTTPException(status_code=400, detail="Only .parquet files are supported.")
     try:
+            # Reading the file byte stream asynchronous from the ram and store it in the variable
             contents = await file.read()
+
+            # Transfer the byte array in an object and transform it in a df
             df = pd.read_parquet(io.BytesIO(contents))
 
-            # # Column mapping for the time, amount and the 'V' columns
-            # column_mapping = {"Time": "elapsed_sec", "Amount": "amount"}
-            # column_mapping.update({f"V{i}": f"pc_{i}" for i in range(1, 29)})
+            # Trim the df due to tiem reasons
+            df = df.iloc[:500].copy()
 
-            # # Remove the class column if the column should exist unexpectedly
-            # for col in ["Class", "class", "target_class"]:
-            #     if col in df.columns:
-            #         df = df.drop(columns=[col])
+            # Column mapping for the time, amount and the 'V' columns
+            column_mapping = {"Time": "elapsed_sec", "Amount": "amount"}
+            column_mapping.update({f"V{i}": f"pc_{i}" for i in range(1, 29)})
 
-            # # Rename the columns
-            # df = df.rename(columns=column_mapping)
+            # Rename the columns
+            df = df.rename(columns=column_mapping)
 
             # Apply the predict function on the df
             predictions = predict(REGISTERED_MODEL_NAME, df, DEFAULT_MODEL_ALIAS)
@@ -122,7 +123,7 @@ async def predict_transactions_unknown_label(file: UploadFile = File(description
             # Add another column for the predictions
             df["prediction"] = predictions
 
-            # Return the dict
+            # Return the df as a list of dictionaries
             return df.to_dict(orient="records")
 
     except Exception as e:
@@ -131,30 +132,34 @@ async def predict_transactions_unknown_label(file: UploadFile = File(description
 
 @app.post("/predict_file_known_label", response_model=list[TransactionClassificationKnownLabel])
 async def predict_transactions_known_label(
-    file: UploadFile = File(description="Parquet-Datei mit Transaktionsdaten und Target-Label")
+    file: UploadFile = File(description="Parquet file containing the transactions with known labels.")
 ) -> list[dict[str, Any]]:
     if not file.filename.endswith(".parquet"):
         raise HTTPException(status_code=400, detail="Only .parquet files are supported.")
     try:
+
+        # Reading the file byte stream asynchronous from the ram and store it in the variable
         contents = await file.read()
+
+        # Transfer the byte array in an object and transform it in a df
         df = pd.read_parquet(io.BytesIO(contents))
 
-        df = df.iloc[:50].copy()
-
-        df_class_col = df["Class"]
+        # Trim the df due to tiem reasons
+        df = df.iloc[:500].copy()
 
         # # Column mapping for the time, amount and the 'V' columns
-        # column_mapping = {"Time": "elapsed_sec", "Amount": "amount"}
-        # column_mapping.update({f"V{i}": f"pc_{i}" for i in range(1, 29)})
+        column_mapping = {"Time": "elapsed_sec", "Amount": "amount"}
+        column_mapping.update({f"V{i}": f"pc_{i}" for i in range(1, 29)})
 
-        # # Column mapping for the 'class' mapping
-        # if "Class" in df.columns:
-        #     column_mapping["Class"] = "class"
+        # Column mapping for the 'class' mapping
+        if "Class" in df.columns:
+            column_mapping["Class"] = "class"
 
-        # # Rename the columns
-        # df = df.rename(columns=column_mapping)
+        # Rename the columns
+        df = df.rename(columns=column_mapping)
 
-        print(f"COLUMNS = {df.columns}")
+        # Extract the 'class' column
+        df_class_col = df["class"]
 
         # Apply the predict function on the df
         predictions = predict(REGISTERED_MODEL_NAME, df, DEFAULT_MODEL_ALIAS)
@@ -162,9 +167,10 @@ async def predict_transactions_known_label(
         # Add another column for the predictions
         df["prediction"] = predictions
 
+        # Add the 'class' column to the df after extracting earlier
         df["class"] = df_class_col
 
-        # Return the dict
+        # Return the df as a list of dictionaries
         return df.to_dict(orient="records")
 
     except Exception as e:

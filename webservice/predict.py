@@ -58,46 +58,41 @@ def predict(
         int: Predicted fraud label.
 
     """
-    # Load .env when running locally outside Docker. In Docker Compose, the same
-    # variable is injected through env_file.
+    # Ensure tracking URI is available
     if not mlflow_tracking_uri:
         raise RuntimeError("MLFLOW_TRACKING_URI is not set.")
 
-    # MLflow needs the tracking URI before resolving models:/ URIs.
+    # Set MLflow tracking URI before resolving model reference
     mlflow.set_tracking_uri(mlflow_tracking_uri)
-    print("Data input:", data)
 
-    # Convert the Pydantic request object into the tabular shape expected by
-    # mlflow.pyfunc models.
+    # Convert Pydantic request object into a DataFrame if necessary
     if isinstance(data, pd.DataFrame):
         df_transactions_input = data.copy()
     else:
         df_transactions_input = pd.DataFrame([data.model_dump()])
-    print("Load model...")
 
-    # Remove the target column
+    # Remove target ground-truth columns if present in the input
     for target_col in ["class", "Class", "target_class"]:
         if target_col in df_transactions_input.columns:
             df_transactions_input = df_transactions_input.drop(columns=[target_col])
 
-    # Column mapping for the time, amount and the 'V' columns
-    column_mapping = {"Time": "elapsed_sec", "Amount": "amount"}
-    column_mapping.update({f"V{i}": f"pc_{i}" for i in range(1, 29)})
-
-    # Rename the columns
-    df_transactions_input = df_transactions_input.rename(columns=column_mapping)
-
+    # Ensure all feature columns are converted to float
     df_transactions_input = df_transactions_input.astype(float)
 
-    # The cached loader keeps repeated monitoring traffic fast. Without it, the
-    # API would reopen the same model artifact for every single request.
+    # Load model from registry using cached helper function
     model = load_model(model_name, alias)
-    print("Making prediction with data: ", df_transactions_input.head())
+
+    # Perform inference
     predictions = model.predict(df_transactions_input)
 
-    results = [int(pred) for pred in predictions]
+    # Vectorized type conversion to integer using C-level NumPy/Pandas ops
+    if hasattr(predictions, "astype"):
+        results = predictions.astype(int)
+    else:
+        results = predictions
 
-    if isinstance(data, (pd.DataFrame, list)):
-        return results
-    # Für ein einzelnes Pydantic-Objekt nur den einzelnen Integer zurückgeben
-    return results[0]
+    # Return a list of ints for DataFrame batch requests, or a single scalar int for single records
+    if isinstance(data, pd.DataFrame):
+        return results.tolist()
+
+    return int(results[0])

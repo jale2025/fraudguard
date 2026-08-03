@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 # This model describes the JSON body accepted by POST /predict.
 class TransactionUnknownLabel(BaseModel):
     """
-    Pydantic model describing a single transaction's features used for prediction.
+    Pydantic model describing a single transaction's features used for prediction with an unknown label.
 
     Attributes correspond to the anonymized V1..V28 features, the transaction Time,
     and Amount fields expected by the prediction API.
@@ -43,24 +43,27 @@ class TransactionUnknownLabel(BaseModel):
     pc_28: float = Field(..., examples=[1.5])
     amount: float = Field(..., examples=[255.65])
 
+
 class TransactionKnownLabel(TransactionUnknownLabel):
     """
-    Pydantic model describing a single transaction's features used for prediction.
+    Pydantic model describing a single transaction's features used for prediction with a known label.
 
     Attributes correspond to the anonymized V1..V28 features, the transaction Time,
     and Amount fields expected by the prediction API.
     """
 
-    # 'target_class' im Python-Code, spiegelt 'Class' im JSON/Parquet wider
+    # The targte class represents the 'class' column
+    # Was not possible to use 'class' - it's a reserved key word for classes
     target_class: int = Field(..., alias="class", examples=[0])
 
-    # Erlaubt den Zugriff sowohl über t.target_class als auch per Field-Name/Alias
+    # Allows the acces via t.target_class or field name
     model_config = {"populate_by_name": True}
+
 
 # The response reuses every request feature and appends the model output.
 class TransactionClassificationKnownLabel(TransactionKnownLabel):
     """
-    Response model including the predicted class for a transaction.
+    Response model including the predicted class for a transaction with an unknown label.
 
     Inherits all transaction features from Transaction and appends a
     `prediction` field containing the model's integer class output.
@@ -68,9 +71,10 @@ class TransactionClassificationKnownLabel(TransactionKnownLabel):
 
     prediction: int
 
+
 class TransactionClassificationUnknownLabel(TransactionUnknownLabel):
     """
-    Response model including the predicted class for a transaction.
+    Response model including the predicted class for a transaction with a known label.
 
     Inherits all transaction features from Transaction and appends a
     `prediction` field containing the model's integer class output.
