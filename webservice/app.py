@@ -7,6 +7,7 @@ This module owns the public API surface:
 - POST /predict for model inference
 - /metrics through prometheus-fastapi-instrumentator for service telemetry
 """
+
 import io
 import os
 from typing import Any
@@ -49,7 +50,10 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.post("/predict_single_unknown_label", response_model=TransactionClassificationUnknownLabel)
+@app.post(
+    "/predict_single_unknown_label",
+    response_model=TransactionClassificationUnknownLabel,
+)
 def predict_transaction_unknown_label(data: TransactionUnknownLabel) -> dict[str, Any]:
     """Run model inference on a transaction and return the classification."""
     # First serve the model prediction. Monitoring should observe this request,
@@ -80,10 +84,14 @@ def predict_transaction_unknown_label(data: TransactionUnknownLabel) -> dict[str
     # Return the same payload shape used for monitoring so users can
     # compare what the client sees with what Evidently receives.
     print(f"Returning prediction: {prediction}")
-    return TransactionClassificationUnknownLabel(**data.model_dump(), prediction=prediction)
+    return TransactionClassificationUnknownLabel(
+        **data.model_dump(), prediction=prediction
+    )
 
 
-@app.post("/predict_single_known_label", response_model=TransactionClassificationKnownLabel)
+@app.post(
+    "/predict_single_known_label", response_model=TransactionClassificationKnownLabel
+)
 def predict_transaction_known_label(data: TransactionKnownLabel) -> dict[str, Any]:
     """Run model inference on a transaction and return the classification."""
     # First serve the model prediction. Monitoring should observe this request,
@@ -93,51 +101,71 @@ def predict_transaction_known_label(data: TransactionKnownLabel) -> dict[str, An
     # Return the same payload shape used for monitoring so users can
     # compare what the client sees with what Evidently receives.
     print(f"Returning prediction: {prediction}")
-    return TransactionClassificationKnownLabel(**data.model_dump(), prediction=prediction)
+    return TransactionClassificationKnownLabel(
+        **data.model_dump(), prediction=prediction
+    )
 
-@app.post("/predict_file_unknown_label", response_model=list[TransactionClassificationUnknownLabel])
-async def predict_transactions_unknown_label(file: UploadFile = File(description="Parquet file containing the transactions with unknown labels.")) -> list[dict[str, Any]]:
+
+@app.post(
+    "/predict_file_unknown_label",
+    response_model=list[TransactionClassificationUnknownLabel],
+)
+async def predict_transactions_unknown_label(
+    file: UploadFile = File(
+        description="Parquet file containing the transactions with unknown labels."
+    ),
+) -> list[dict[str, Any]]:
     """Run model inference on a uploaded Parquet file without ground truth."""
     if not file.filename.endswith(".parquet"):
-            raise HTTPException(status_code=400, detail="Only .parquet files are supported.")
+        raise HTTPException(
+            status_code=400, detail="Only .parquet files are supported."
+        )
     try:
-            # Reading the file byte stream asynchronous from the ram and store it in the variable
-            contents = await file.read()
+        # Reading the file byte stream asynchronous from the ram and store it in the variable
+        contents = await file.read()
 
-            # Transfer the byte array in an object and transform it in a df
-            df = pd.read_parquet(io.BytesIO(contents))
+        # Transfer the byte array in an object and transform it in a df
+        df = pd.read_parquet(io.BytesIO(contents))
 
-            # Trim the df due to tiem reasons
-            df = df.iloc[:500].copy()
+        # Trim the df due to tiem reasons
+        df = df.iloc[:500].copy()
 
-            # Column mapping for the time, amount and the 'V' columns
-            column_mapping = {"Time": "elapsed_sec", "Amount": "amount"}
-            column_mapping.update({f"V{i}": f"pc_{i}" for i in range(1, 29)})
+        # Column mapping for the time, amount and the 'V' columns
+        column_mapping = {"Time": "elapsed_sec", "Amount": "amount"}
+        column_mapping.update({f"V{i}": f"pc_{i}" for i in range(1, 29)})
 
-            # Rename the columns
-            df = df.rename(columns=column_mapping)
+        # Rename the columns
+        df = df.rename(columns=column_mapping)
 
-            # Apply the predict function on the df
-            predictions = predict(REGISTERED_MODEL_NAME, df, DEFAULT_MODEL_ALIAS)
+        # Apply the predict function on the df
+        predictions = predict(REGISTERED_MODEL_NAME, df, DEFAULT_MODEL_ALIAS)
 
-            # Add another column for the predictions
-            df["prediction"] = predictions
+        # Add another column for the predictions
+        df["prediction"] = predictions
 
-            # Return the df as a list of dictionaries
-            return df.to_dict(orient="records")
+        # Return the df as a list of dictionaries
+        return df.to_dict(orient="records")
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error processing Parquet file: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error processing Parquet file: {str(e)}"
+        ) from e
 
 
-@app.post("/predict_file_known_label", response_model=list[TransactionClassificationKnownLabel])
+@app.post(
+    "/predict_file_known_label",
+    response_model=list[TransactionClassificationKnownLabel],
+)
 async def predict_transactions_known_label(
-    file: UploadFile = File(description="Parquet file containing the transactions with known labels.")
+    file: UploadFile = File(
+        description="Parquet file containing the transactions with known labels."
+    ),
 ) -> list[dict[str, Any]]:
     if not file.filename.endswith(".parquet"):
-        raise HTTPException(status_code=400, detail="Only .parquet files are supported.")
+        raise HTTPException(
+            status_code=400, detail="Only .parquet files are supported."
+        )
     try:
-
         # Reading the file byte stream asynchronous from the ram and store it in the variable
         contents = await file.read()
 
@@ -174,4 +202,6 @@ async def predict_transactions_known_label(
         return df.to_dict(orient="records")
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error processing Parquet file: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error processing Parquet file: {str(e)}"
+        )
