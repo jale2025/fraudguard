@@ -2,6 +2,8 @@ version: 2
 
 sources:
   - name: src_fraud_detection # table_name -> dbt_<target>_stg.src_fraud_detection
-    schema: public
+    schema: raw
     tables:
       - name: transactions
+      - name: labeled_predictions_queue
+      - name: predictions 

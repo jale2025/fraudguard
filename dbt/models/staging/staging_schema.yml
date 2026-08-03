@@ -143,6 +143,301 @@ models:
         description: Dbt time stamp.
         data_tests:
           - not_null
+  - name: stg_labeled_predictions_queue
+    description: Staging model for the labeled predictions (queue).
+    columns:
+      - name: elapsed_sec
+        description: Time elapsed in seconds since the first transaction.
+        data_tests:
+          - not_null
+      - name: pc_1
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_2
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_3
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_4
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_5
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_6
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_7
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_8
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_9
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_10
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_11
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_12
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_13
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_14
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_15
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_16
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_17
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_18
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_19
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_20
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_21
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_22
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_23
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_24
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_25
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_26
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_27
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_28
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: amount
+        description: Amount of the transaction.
+        data_tests: 
+          - not_null
+      - name: prediction
+        description: Predicted label.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+          - relationships:
+              arguments:
+                to: ref('target_labels')
+                field: class  
+      - name: class
+        description: Target (fraudulant or not fraudulant)
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+          - relationships:
+              arguments:
+                to: ref('target_labels')
+                field: class               
+      - name: ingestion_time
+        description: Time the data was written in the table.
+        data_tests:
+          - not_null
+      - name: dbt_timestamp
+        description: Dbt time stamp.
+        data_tests:
+          - not_null
+  - name: stg_predictions
+    description: Staging model for the predictions.
+    columns:
+      - name: elapsed_sec
+        description: Time elapsed in seconds since the first transaction.
+        data_tests:
+          - not_null
+      - name: pc_1
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_2
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_3
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_4
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_5
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_6
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_7
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_8
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_9
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_10
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_11
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_12
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_13
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_14
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_15
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_16
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_17
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_18
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_19
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_20
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_21
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_22
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_23
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_24
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_25
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_26
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_27
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: pc_28
+        description: Principal component V#
+        data_tests:
+          - not_null
+      - name: amount
+        description: Amount of the transaction.
+        data_tests: 
+          - not_null
+      - name: prediction
+        description: Predicted label.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+          - relationships:
+              arguments:
+                to: ref('target_labels')
+                field: class             
+      - name: ingestion_time
+        description: Time the data was written in the table.
+        data_tests:
+          - not_null
+      - name: dbt_timestamp
+        description: Dbt time stamp.
+        data_tests:
+          - not_null
 
 seeds:
   - name: target_labels
