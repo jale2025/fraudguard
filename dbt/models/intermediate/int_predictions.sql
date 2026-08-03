@@ -1,7 +1,11 @@
-{{ config(materialized='table', schema='data_science') }}
+{{ config(materialized='table', schema='int') }}
 
+select *
+from {{ ref('stg_predictions') }}
 
-select
+UNION All 
+
+select 
     elapsed_sec,
     pc_1,
     pc_2,
@@ -32,5 +36,12 @@ select
     pc_27,
     pc_28,
     amount,
-    class
-from {{ ref('int_training_data') }}
+    prediction,
+    ingestion_time,
+    current_timestamp AT TIME ZONE 'UTC' as dbt_timestamp
+from {{ ref('stg_labeled_predictions_queue') }}
+
+
+{% if target.name == 'dev' %}
+    -- limit 1000
+{% endif %}
