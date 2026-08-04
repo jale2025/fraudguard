@@ -13,5 +13,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY src /prefect/src
 COPY prefect /prefect
 COPY dbt /prefect/dbt
+COPY data/parquet_files/base_dataset.parquet /prefect/base_dataset.parquet
 
-CMD ["python", "flow.py"]
+CMD ["sh", "-c", "mv /prefect/base_dataset.parquet /data/incoming/base_dataset.parquet && python flow.py"]

@@ -32,5 +32,5 @@ select
     pc_27,
     pc_28,
     amount,
-    class
-from {{ ref('int_training_data') }}
+    prediction
+from {{ ref('int_predictions') }}

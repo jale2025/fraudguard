@@ -5,6 +5,7 @@ from functools import lru_cache
 
 import mlflow
 import pandas as pd
+from data_model import TransactionKnownLabel, TransactionUnknownLabel
 
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
 
@@ -35,7 +36,10 @@ def load_model(model_name, alias="production"):
 
 
 def predict(
-    model_name, data, alias="production", mlflow_tracking_uri=MLFLOW_TRACKING_URI
+    model_name,
+    data: TransactionUnknownLabel | TransactionKnownLabel | pd.DataFrame,
+    alias="production",
+    mlflow_tracking_uri=MLFLOW_TRACKING_URI,
 ):
     """
     Predict a fraud label for the provided input data.
@@ -54,23 +58,41 @@ def predict(
         int: Predicted fraud label.
 
     """
-    # Load .env when running locally outside Docker. In Docker Compose, the same
-    # variable is injected through env_file.
+    # Ensure tracking URI is available
     if not mlflow_tracking_uri:
         raise RuntimeError("MLFLOW_TRACKING_URI is not set.")
 
-    # MLflow needs the tracking URI before resolving models:/ URIs.
+    # Set MLflow tracking URI before resolving model reference
     mlflow.set_tracking_uri(mlflow_tracking_uri)
-    print("Data input:", data)
 
-    # Convert the Pydantic request object into the tabular shape expected by
-    # mlflow.pyfunc models.
-    model_input = pd.DataFrame([data.model_dump()]).astype(float)
-    print("Load model...")
+    # Convert Pydantic request object into a DataFrame if necessary
+    if isinstance(data, pd.DataFrame):
+        df_transactions_input = data.copy()
+    else:
+        df_transactions_input = pd.DataFrame([data.model_dump()])
 
-    # The cached loader keeps repeated monitoring traffic fast. Without it, the
-    # API would reopen the same model artifact for every single request.
+    # Remove target ground-truth columns if present in the input
+    for target_col in ["class", "Class", "target_class"]:
+        if target_col in df_transactions_input.columns:
+            df_transactions_input = df_transactions_input.drop(columns=[target_col])
+
+    # Ensure all feature columns are converted to float
+    df_transactions_input = df_transactions_input.astype(float)
+
+    # Load model from registry using cached helper function
     model = load_model(model_name, alias)
-    print("Making prediction with data: ", model_input.head())
-    prediction = model.predict(model_input)
-    return int(prediction[0])
+
+    # Perform inference
+    predictions = model.predict(df_transactions_input)
+
+    # Vectorized type conversion to integer using C-level NumPy/Pandas ops
+    if hasattr(predictions, "astype"):
+        results = predictions.astype(int)
+    else:
+        results = predictions
+
+    # Return a list of ints for DataFrame batch requests, or a single scalar int for single records
+    if isinstance(data, pd.DataFrame):
+        return results.tolist()
+
+    return int(results[0])

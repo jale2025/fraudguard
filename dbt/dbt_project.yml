@@ -37,9 +37,9 @@ models:
     staging:
       +materialized: table
       +schema: staging
-    # intermediate:
-    #   +materialized: table
-    #   +schema: intermediate
+    intermediate:
+      +materialized: table
+      +schema: intermediate
     mart:
       +materialized: table
       # driver:

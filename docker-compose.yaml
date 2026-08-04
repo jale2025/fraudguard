@@ -121,6 +121,8 @@ services:
         condition: service_started
     ports:
       - "8000:8000"
+    volumes:
+      - ./webservice:/webservice
     environment:
       MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
       MODEL_NAME: ${MODEL_NAME}

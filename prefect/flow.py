@@ -6,7 +6,7 @@ from prefect import flow, get_run_logger
 from src.data_helper import data_available
 
 
-@flow(name="fraud_detection_pipeline")
+@flow(name="fraud_detection_pipeline", timeout_seconds=300)
 def fraudguard_pipeline() -> None:
     """Execute the complete fraud detection pipeline triggered by a cron job."""
     logger = get_run_logger()
