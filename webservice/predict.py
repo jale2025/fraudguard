@@ -6,9 +6,12 @@ from functools import lru_cache
 import mlflow
 import pandas as pd
 from data_model import TransactionKnownLabel, TransactionUnknownLabel
+from mlflow.exceptions import MlflowException
 
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
 
+class ModelNotAvailableError(RuntimeError):
+    """Raised when the registered MLflow model cannot be loaded."""
 
 # Cache the loaded model so repeated monitoring traffic does not reload the same
 # MLflow artifact for every request.
@@ -31,8 +34,12 @@ def load_model(model_name, alias="production"):
     # mlflow.pyfunc.load_model hides the concrete library flavor behind a common
     # prediction interface, so the API can stay the same even if the training
     # script later swaps the underlying estimator.
-    model = mlflow.pyfunc.load_model(model_uri)
-    return model
+    try:
+        return mlflow.pyfunc.load_model(model_uri)
+    except MlflowException as exc:
+        raise ModelNotAvailableError(
+            f"Model '{model_name}' with alias '{alias}' is unavailable."
+        ) from exc
 
 
 def predict(

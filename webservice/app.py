@@ -5,7 +5,7 @@ This module owns the public API surface:
 - GET / for a simple info message
 - GET /health for a liveness check
 - POST /predict for model inference
-- /metrics through prometheus-fastapi-instrumentator for service telemetry
+- /metrics for prometheus monitoring
 """
 
 import io
@@ -21,7 +21,10 @@ from data_model import (
 )
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from predict import predict
+from predict import predict, ModelNotAvailableError
+from prometheus_client import make_asgi_app
+from api_model_metrics import MODEL_INFERENCE_DURATION, record_prediction_metrics
+from api_http_metrics import PREDICTION_REQUESTS
 
 # Load dotenv
 load_dotenv()
@@ -33,6 +36,9 @@ DEFAULT_MODEL_ALIAS = os.environ["DEFAULT_MODEL_ALIAS"]
 
 app = FastAPI(title="Credit Card Fraud Detection API", version="0.1")
 
+# Expose Prometheus metrics on /metrics for Prometheus to scrape.
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
 
 # Expose default FastAPI request metrics on /metrics for Prometheus.
 # Instrumentator().instrument(app).expose(app)
@@ -52,56 +58,95 @@ def health() -> dict[str, str]:
     "/predict_single_unknown_label",
     response_model=TransactionClassificationUnknownLabel,
 )
-def predict_transaction_unknown_label(data: TransactionUnknownLabel) -> dict[str, Any]:
+def predict_transaction_unknown_label(data: TransactionUnknownLabel) -> TransactionClassificationUnknownLabel:
     """Run model inference on a transaction and return the classification."""
     # First serve the model prediction. Monitoring should observe this request,
     # but it should not change the prediction result returned to the client.
-    prediction = predict(REGISTERED_MODEL_NAME, data, DEFAULT_MODEL_ALIAS)
-    # try:
-    #     print(f"Sending data to metrics application: {data}")
+    # prediction = predict(REGISTERED_MODEL_NAME, data, DEFAULT_MODEL_ALIAS)
+    endpoint = "predict_single_unknown_label"
+    try:
+        with MODEL_INFERENCE_DURATION.labels(
+            request_type="single",
+        ).time():
+            prediction = predict(
+                REGISTERED_MODEL_NAME,
+                data,
+                DEFAULT_MODEL_ALIAS,
+            )
 
-    #     # Evidently needs both the input features and the model output so it can
-    #     # compare live predictions against the reference distribution.
-    #     monitoring_payload = TransactionClassification(
-    #         **data.model_dump(), prediction=prediction
-    #     ).model_dump()
+        record_prediction_metrics(
+            prediction,
+            request_type="single",
+            ground_truth="unknown",
+        )
 
-    #     # This POST is intentionally fire-and-forget from the API's point of
-    #     # view. If monitoring is slow or unavailable, the client should still
-    #     # receive the prediction response from the model service.
-    #     requests.post(
-    #         MONITORING_URL,
-    #         json=monitoring_payload,
-    #         timeout=5,
-    #     )
-    # except requests.exceptions.ConnectionError as error:
-    #     print(f"Cannot reach a metrics application, error: {error}, data: {data}")
-    # except requests.exceptions.Timeout as error:
-    #     print(f"Metrics application timed out, error: {error}, data: {data}")
+        PREDICTION_REQUESTS.labels(
+            endpoint=endpoint,
+            result="success",
+        ).inc()
 
-    # Return the same payload shape used for monitoring so users can
-    # compare what the client sees with what Evidently receives.
-    print(f"Returning prediction: {prediction}")
-    return TransactionClassificationUnknownLabel(
-        **data.model_dump(), prediction=prediction
-    )
+        print(f"Returning prediction: {prediction}")
+
+        return TransactionClassificationUnknownLabel(
+            **data.model_dump(), prediction=prediction
+        )
+
+    except ModelNotAvailableError as exc:
+        PREDICTION_REQUESTS.labels(
+            endpoint=endpoint,
+            result="model_unavailable",
+        ).inc()
+
+        raise HTTPException(
+            status_code=503,
+            detail="Prediction model is currently unavailable.",
+        ) from exc
 
 
 @app.post(
     "/predict_single_known_label", response_model=TransactionClassificationKnownLabel
 )
-def predict_transaction_known_label(data: TransactionKnownLabel) -> dict[str, Any]:
+def predict_transaction_known_label(data: TransactionKnownLabel) -> TransactionClassificationKnownLabel:
     """Run model inference on a transaction and return the classification."""
-    # First serve the model prediction. Monitoring should observe this request,
-    # but it should not change the prediction result returned to the client.
-    prediction = predict(REGISTERED_MODEL_NAME, data, DEFAULT_MODEL_ALIAS)
 
-    # Return the same payload shape used for monitoring so users can
-    # compare what the client sees with what Evidently receives.
-    print(f"Returning prediction: {prediction}")
-    return TransactionClassificationKnownLabel(
-        **data.model_dump(), prediction=prediction
-    )
+    endpoint = "predict_single_known_label"
+    try:
+        with MODEL_INFERENCE_DURATION.labels(
+            request_type="single",
+        ).time():
+            prediction = predict(
+                REGISTERED_MODEL_NAME,
+                data,
+                DEFAULT_MODEL_ALIAS,
+            )
+
+        record_prediction_metrics(
+            prediction,
+            request_type="single",
+            ground_truth="known",
+        )
+
+        PREDICTION_REQUESTS.labels(
+            endpoint=endpoint,
+            result="success",
+        ).inc()
+
+        print(f"Returning prediction: {prediction}")
+
+        return TransactionClassificationKnownLabel(
+            **data.model_dump(), prediction=prediction
+        )
+
+    except ModelNotAvailableError as exc:
+        PREDICTION_REQUESTS.labels(
+            endpoint=endpoint,
+            result="model_unavailable",
+        ).inc()
+
+        raise HTTPException(
+            status_code=503,
+            detail="Prediction model is currently unavailable.",
+        ) from exc
 
 
 @app.post(
