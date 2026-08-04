@@ -1,4 +1,4 @@
-from prometheus_client import Counter, Gauge
+from prometheus_client import Counter
 
 PREDICTION_REQUESTS = Counter(
     "fraudguard_prediction_requests_total",

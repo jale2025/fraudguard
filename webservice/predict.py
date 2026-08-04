@@ -10,8 +10,10 @@ from mlflow.exceptions import MlflowException
 
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
 
+
 class ModelNotAvailableError(RuntimeError):
     """Raised when the registered MLflow model cannot be loaded."""
+
 
 # Cache the loaded model so repeated monitoring traffic does not reload the same
 # MLflow artifact for every request.

@@ -1,5 +1,6 @@
-from prometheus_client import Counter, Gauge, Histogram
+from collections import Counter as FrequencyCounter
 
+from prometheus_client import Counter, Histogram
 
 PREDICTIONS = Counter(
     "fraudguard_predictions_total",
@@ -17,7 +18,7 @@ FILE_ROWS = Histogram(
     "fraudguard_prediction_file_rows",
     "Number of transactions processed per uploaded file.",
     ["ground_truth"],
-    #buckets=(1, 10, 50, 100, 250, 500),
+    # buckets=(1, 10, 50, 100, 250, 500),
 )
 
 MODEL_INFERENCE_DURATION = Histogram(
@@ -48,7 +49,6 @@ def record_prediction_metrics(
     actual: int | list[int] | None = None,
 ) -> None:
     """Record model outputs and, if available, classification outcomes."""
-
     prediction_values = (
         [int(predictions)]
         if isinstance(predictions, int)
@@ -75,15 +75,15 @@ def record_prediction_metrics(
         return
 
     actual_values = (
-        [int(actual)]
-        if isinstance(actual, int)
-        else [int(value) for value in actual]
+        [int(actual)] if isinstance(actual, int) else [int(value) for value in actual]
     )
 
     if len(actual_values) != len(prediction_values):
         raise ValueError("Actual labels and predictions have different lengths.")
 
-    outcome_counts = FrequencyCounter(zip(actual_values, prediction_values))
+    outcome_counts = FrequencyCounter(
+        zip(actual_values, prediction_values, strict=True)
+    )
 
     for outcome, count in outcome_counts.items():
         outcome_name = OUTCOME_NAMES.get(outcome, "other")
