@@ -143,19 +143,19 @@ services:
     networks:
       - fraud-guard-network
 
-  # grafana:
-  #   image: grafana/grafana:13.0.1
-  #   ports:
-  #     - "3000:3000"
-  #   restart: unless-stopped
-  #   volumes:
-  #     - ./grafana/provisioning:/etc/grafana/provisioning
-  #     - ./grafana/dashboards:/etc/grafana/dashboards
-  #     - grafana-data:/var/lib/grafana
-  #   depends_on:
-  #     - prometheus
-  #   networks:
-  #     - fraud-guard-network
+  grafana:
+    image: grafana/grafana:13.0.1
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/etc/grafana/dashboards
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - fraud-guard-network
 
   # evidently_service:
   #   build:
@@ -170,7 +170,7 @@ services:
 volumes:
   mlflow_data:
   dbdata:
-  # grafana-data:
+  grafana-data:
   prometheus-data:
 
 networks:

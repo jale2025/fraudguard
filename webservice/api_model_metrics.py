@@ -18,7 +18,7 @@ FILE_ROWS = Histogram(
     "fraudguard_prediction_file_rows",
     "Number of transactions processed per uploaded file.",
     ["ground_truth"],
-    # buckets=(1, 10, 50, 100, 250, 500),
+    buckets=(1, 10, 100, 10000, 1000000),
 )
 
 MODEL_INFERENCE_DURATION = Histogram(
