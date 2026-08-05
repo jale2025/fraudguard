@@ -65,7 +65,7 @@ def predict(
     model_name,
     data: TransactionUnknownLabel | TransactionKnownLabel | pd.DataFrame,
     alias="production",
-    mlflow_tracking_uri: str | None = None,,
+    mlflow_tracking_uri: str | None = None,
 ):
     """
     Predict a fraud label for the provided input data.
