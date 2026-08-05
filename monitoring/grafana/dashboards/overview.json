@@ -297,9 +297,49 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "label_replace(last_over_time(sum by (le) (fraudguard_prediction_file_rows_bucket)[$__range:]), \"le\", \"z_Inf\", \"le\", \"\\\\+Inf\")",
-          "legendFormat": "{{le}}",
+          "expr": "(last_over_time(sum(fraudguard_prediction_file_rows_bucket{le=\"10.0\"})[$__range:]) or vector(0))",
+          "legendFormat": "1 - 10",
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(last_over_time(sum(fraudguard_prediction_file_rows_bucket{le=\"100.0\"})[$__range:]) or vector(0)) - (last_over_time(sum(fraudguard_prediction_file_rows_bucket{le=\"10.0\"})[$__range:]) or vector(0))",
+          "legendFormat": "11 - 100",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(last_over_time(sum(fraudguard_prediction_file_rows_bucket{le=\"10000.0\"})[$__range:]) or vector(0)) - (last_over_time(sum(fraudguard_prediction_file_rows_bucket{le=\"100.0\"})[$__range:]) or vector(0))",
+          "legendFormat": "101 - 10.000",
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(last_over_time(sum(fraudguard_prediction_file_rows_bucket{le=\"1e+06\"})[$__range:]) or vector(0)) - (last_over_time(sum(fraudguard_prediction_file_rows_bucket{le=\"10000.0\"})[$__range:]) or vector(0))",
+          "legendFormat": "10.001 - 1e6",
+          "refId": "D"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(last_over_time(sum(fraudguard_prediction_file_rows_bucket{le=\"+Inf\"})[$__range:]) or vector(0)) - (last_over_time(sum(fraudguard_prediction_file_rows_bucket{le=\"1e+06\"})[$__range:]) or vector(0))",
+          "legendFormat": "> 1e6",
+          "refId": "E"
         }
       ],
       "transformations": [
@@ -308,18 +348,6 @@
           "options": {
             "reducers": [
               "last"
-            ]
-          }
-        },
-        {
-          "id": "sortBy",
-          "options": {
-            "fields": {},
-            "sort": [
-              {
-                "field": "Field",
-                "desc": false
-              }
             ]
           }
         }
@@ -342,32 +370,7 @@
           "custom": {
             "drawStyle": "bar"
           },
-          "decimals": 0,
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "1.0": {
-                  "text": "1"
-                },
-                "10.0": {
-                  "text": "10"
-                },
-                "100.0": {
-                  "text": "100"
-                },
-                "10000.0": {
-                  "text": "10.000"
-                },
-                "1e+06": {
-                  "text": "1e+06"
-                },
-                "z_Inf": {
-                  "text": "+Inf"
-                }
-              }
-            }
-          ]
+          "decimals": 0
         }
       }
     }
