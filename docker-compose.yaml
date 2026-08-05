@@ -129,11 +129,25 @@ services:
       DEFAULT_MODEL_ALIAS: ${DEFAULT_MODEL_ALIAS}
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/ready', timeout=10)\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     networks:
       - fraud-guard-network
 
   prometheus:
     image: prom/prometheus:v3.7.3
+    container_name: prometheus
+    depends_on:
+      api-service:
+        condition: service_started
     ports:
       - "9090:9090"
     volumes:

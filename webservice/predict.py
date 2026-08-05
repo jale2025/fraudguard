@@ -8,7 +8,7 @@ import pandas as pd
 from data_model import TransactionKnownLabel, TransactionUnknownLabel
 from mlflow.exceptions import MlflowException
 
-MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
+# MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
 
 
 class ModelNotAvailableError(RuntimeError):
@@ -43,12 +43,29 @@ def load_model(model_name, alias="production"):
             f"Model '{model_name}' with alias '{alias}' is unavailable."
         ) from exc
 
+def ensure_model_available(
+    model_name: str,
+    alias: str = "production",
+    mlflow_tracking_uri: str | None = None,
+):
+    """Return the configured MLflow model if it is available."""
+
+    tracking_uri = mlflow_tracking_uri or os.getenv("MLFLOW_TRACKING_URI")
+
+    if not tracking_uri:
+        raise ModelNotAvailableError(
+            "MLFLOW_TRACKING_URI is not configured."
+        )
+
+    mlflow.set_tracking_uri(tracking_uri)
+
+    return load_model(model_name, alias)
 
 def predict(
     model_name,
     data: TransactionUnknownLabel | TransactionKnownLabel | pd.DataFrame,
     alias="production",
-    mlflow_tracking_uri=MLFLOW_TRACKING_URI,
+    mlflow_tracking_uri: str | None = None,,
 ):
     """
     Predict a fraud label for the provided input data.
@@ -67,12 +84,12 @@ def predict(
         int: Predicted fraud label.
 
     """
-    # Ensure tracking URI is available
-    if not mlflow_tracking_uri:
-        raise RuntimeError("MLFLOW_TRACKING_URI is not set.")
+    # # Ensure tracking URI is available
+    # if not mlflow_tracking_uri:
+    #     raise RuntimeError("MLFLOW_TRACKING_URI is not set.")
 
-    # Set MLflow tracking URI before resolving model reference
-    mlflow.set_tracking_uri(mlflow_tracking_uri)
+    # # Set MLflow tracking URI before resolving model reference
+    # mlflow.set_tracking_uri(mlflow_tracking_uri)
 
     # Convert Pydantic request object into a DataFrame if necessary
     if isinstance(data, pd.DataFrame):
@@ -89,8 +106,12 @@ def predict(
     df_transactions_input = df_transactions_input.astype(float)
 
     # Load model from registry using cached helper function
-    model = load_model(model_name, alias)
-
+    # model = load_model(model_name, alias)
+    model = ensure_model_available(
+        model_name,
+        alias,
+        mlflow_tracking_uri,
+    )
     # Perform inference
     predictions = model.predict(df_transactions_input)
 

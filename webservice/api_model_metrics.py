@@ -1,6 +1,6 @@
 from collections import Counter as FrequencyCounter
 
-from prometheus_client import Counter, Histogram
+from prometheus_client import Counter, Gauge, Histogram
 
 PREDICTIONS = Counter(
     "fraudguard_predictions_total",
@@ -26,6 +26,11 @@ MODEL_INFERENCE_DURATION = Histogram(
     "Time spent performing model inference.",
     ["request_type"],
     buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5),
+)
+
+MODEL_READY = Gauge(
+    "fraudguard_model_ready",
+    "Whether the configured MLflow model is available for predictions.",
 )
 
 PREDICTION_NAMES = {

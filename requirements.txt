@@ -5,5 +5,5 @@ polars==1.43.0
 adbc-driver-postgresql==1.11.0
 mlflow==3.14.0
 psycopg2-binary==2.9.12
-prometheus_fastapi_instrumentator==8.0.2
+prometheus_client==0.25.0
 ruff==0.16.0

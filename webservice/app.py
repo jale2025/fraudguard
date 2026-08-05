@@ -14,7 +14,7 @@ from typing import Annotated
 
 import pandas as pd
 from api_http_metrics import PREDICTION_REQUESTS
-from api_model_metrics import MODEL_INFERENCE_DURATION, record_prediction_metrics
+from api_model_metrics import MODEL_INFERENCE_DURATION, MODEL_READY, record_prediction_metrics
 from data_model import (
     TransactionClassificationKnownLabel,
     TransactionClassificationUnknownLabel,
@@ -23,7 +23,7 @@ from data_model import (
 )
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from predict import ModelNotAvailableError, predict
+from predict import ModelNotAvailableError, ensure_model_available, predict
 from prometheus_client import make_asgi_app
 
 # Load dotenv
@@ -40,20 +40,36 @@ app = FastAPI(title="Credit Card Fraud Detection API", version="0.1")
 metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
 
-
-# Expose default FastAPI request metrics on /metrics for Prometheus.
-# Instrumentator().instrument(app).expose(app)
 @app.get("/")
 def index():
     """Verify that the API is alive."""
     return {"message": "Credit Card Fraud Detection API"}
 
+# # not used so far
+# @app.get("/health")
+# def health() -> dict[str, str]:
+#     """Check the API liveness."""
+#     return {"status": "ok"}
 
-@app.get("/health")
-def health() -> dict[str, str]:
-    """Check the API liveness."""
-    return {"status": "ok"}
+@app.get("/ready")
+def readiness() -> dict[str, str]:
+    """Check whether the prediction model is available."""
 
+    try: 
+        ensure_model_available(
+            REGISTERED_MODEL_NAME,
+            DEFAULT_MODEL_ALIAS,
+        )
+    except ModelNotAvailableError as exc:
+        MODEL_READY.set(0)
+
+        raise HTTPException(
+            status_code=503,
+            detail="Prediction model is currently unavailable.",
+        ) from exc
+
+    MODEL_READY.set(1)
+    return {"status": "ready"}
 
 @app.post(
     "/predict_single_unknown_label",
@@ -381,6 +397,9 @@ async def predict_transactions_known_label(
             TransactionClassificationKnownLabel.model_validate(record)
             for record in df.to_dict(orient="records")
         ]
+
+    except HTTPException:
+        raise
 
     except ModelNotAvailableError as exc:
         PREDICTION_REQUESTS.labels(
