@@ -147,7 +147,7 @@ services:
     container_name: prometheus
     depends_on:
       api-service:
-        condition: service_started
+        condition: service_healthy
     ports:
       - "9090:9090"
     volumes:
