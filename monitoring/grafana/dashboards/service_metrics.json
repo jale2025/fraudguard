@@ -357,6 +357,155 @@
           "refId": "A"
         }
       ]
+    },
+    {
+      "title": "Single Inference Duration (p50, p90, p99 Latency)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 4
+      },
+      "id": 6,
+      "timeFrom": "2m",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.50, sum by (le) (increase(fraudguard_model_inference_duration_seconds_bucket{request_type=\"single\"}[5m]))) or vector(NaN)",
+          "legendFormat": "p50 (Median)",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.90, sum by (le) (increase(fraudguard_model_inference_duration_seconds_bucket{request_type=\"single\"}[5m]))) or vector(NaN)",
+          "legendFormat": "p90",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum by (le) (increase(fraudguard_model_inference_duration_seconds_bucket{request_type=\"single\"}[5m]))) or vector(NaN)",
+          "legendFormat": "p99",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "pointSize": 6,
+            "spanNulls": true
+          },
+          "unit": "s"
+        }
+      }
+    },
+    {
+      "title": "File Batch Inference Duration (p50, p90, p99 Latency)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 4
+      },
+      "id": 7,
+      "timeFrom": "2m",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.50, sum by (le) (increase(fraudguard_model_inference_duration_seconds_bucket{request_type=\"file\"}[5m]))) or vector(NaN)",
+          "legendFormat": "p50 (Median)",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.90, sum by (le) (increase(fraudguard_model_inference_duration_seconds_bucket{request_type=\"file\"}[5m]))) or vector(NaN)",
+          "legendFormat": "p90",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum by (le) (increase(fraudguard_model_inference_duration_seconds_bucket{request_type=\"file\"}[5m]))) or vector(NaN)",
+          "legendFormat": "p99",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "pointSize": 6,
+            "spanNulls": true
+          },
+          "unit": "s"
+        }
+      }
+    },
+        {
+      "title": "Request Rate (per minute)",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 12
+      },
+      "id": 8,
+      "timeFrom": "2m",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (endpoint, result) (rate(fraudguard_prediction_requests_total[2m])) * 60",
+          "legendFormat": "{{endpoint}} ({{result}})",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth"
+          },
+          "unit": "reqpm"
+        }
+      }
     }
   ],
   "refresh": "15s",
