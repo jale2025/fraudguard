@@ -14,7 +14,11 @@ from typing import Annotated
 
 import pandas as pd
 from api_http_metrics import PREDICTION_REQUESTS
-from api_model_metrics import MODEL_INFERENCE_DURATION, MODEL_READY, record_prediction_metrics
+from api_model_metrics import (
+    MODEL_INFERENCE_DURATION,
+    MODEL_READY,
+    record_prediction_metrics,
+)
 from data_model import (
     TransactionClassificationKnownLabel,
     TransactionClassificationUnknownLabel,
@@ -40,10 +44,12 @@ app = FastAPI(title="Credit Card Fraud Detection API", version="0.1")
 metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
 
+
 @app.get("/")
 def index():
     """Verify that the API is alive."""
     return {"message": "Credit Card Fraud Detection API"}
+
 
 # # not used so far
 # @app.get("/health")
@@ -51,11 +57,11 @@ def index():
 #     """Check the API liveness."""
 #     return {"status": "ok"}
 
+
 @app.get("/ready")
 def readiness() -> dict[str, str]:
     """Check whether the prediction model is available."""
-
-    try: 
+    try:
         ensure_model_available(
             REGISTERED_MODEL_NAME,
             DEFAULT_MODEL_ALIAS,
@@ -70,6 +76,7 @@ def readiness() -> dict[str, str]:
 
     MODEL_READY.set(1)
     return {"status": "ready"}
+
 
 @app.post(
     "/predict_single_unknown_label",

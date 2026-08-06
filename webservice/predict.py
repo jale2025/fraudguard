@@ -43,23 +43,22 @@ def load_model(model_name, alias="production"):
             f"Model '{model_name}' with alias '{alias}' is unavailable."
         ) from exc
 
+
 def ensure_model_available(
     model_name: str,
     alias: str = "production",
     mlflow_tracking_uri: str | None = None,
 ):
     """Return the configured MLflow model if it is available."""
-
     tracking_uri = mlflow_tracking_uri or os.getenv("MLFLOW_TRACKING_URI")
 
     if not tracking_uri:
-        raise ModelNotAvailableError(
-            "MLFLOW_TRACKING_URI is not configured."
-        )
+        raise ModelNotAvailableError("MLFLOW_TRACKING_URI is not configured.")
 
     mlflow.set_tracking_uri(tracking_uri)
 
     return load_model(model_name, alias)
+
 
 def predict(
     model_name,
