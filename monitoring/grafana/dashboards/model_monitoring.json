@@ -592,6 +592,100 @@
           "refId": "A"
         }
       ]
+    },
+    {
+      "title": "Uploaded File Batch Sizes (Rows per Parquet File)",
+      "type": "barchart",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 20
+      },
+      "id": 6,
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(last_over_time(sum(fraudguard_prediction_file_rows_bucket{le=\"10.0\"})[$__range:]) or vector(0))",
+          "legendFormat": "1 - 10",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(last_over_time(sum(fraudguard_prediction_file_rows_bucket{le=\"100.0\"})[$__range:]) or vector(0)) - (last_over_time(sum(fraudguard_prediction_file_rows_bucket{le=\"10.0\"})[$__range:]) or vector(0))",
+          "legendFormat": "11 - 100",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(last_over_time(sum(fraudguard_prediction_file_rows_bucket{le=\"10000.0\"})[$__range:]) or vector(0)) - (last_over_time(sum(fraudguard_prediction_file_rows_bucket{le=\"100.0\"})[$__range:]) or vector(0))",
+          "legendFormat": "101 - 10.000",
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(last_over_time(sum(fraudguard_prediction_file_rows_bucket{le=\"1e+06\"})[$__range:]) or vector(0)) - (last_over_time(sum(fraudguard_prediction_file_rows_bucket{le=\"10000.0\"})[$__range:]) or vector(0))",
+          "legendFormat": "10.001 - 1e6",
+          "refId": "D"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(last_over_time(sum(fraudguard_prediction_file_rows_bucket{le=\"+Inf\"})[$__range:]) or vector(0)) - (last_over_time(sum(fraudguard_prediction_file_rows_bucket{le=\"1e+06\"})[$__range:]) or vector(0))",
+          "legendFormat": "> 1e6",
+          "refId": "E"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "reduce",
+          "options": {
+            "reducers": [
+              "last"
+            ]
+          }
+        }
+      ],
+      "options": {
+        "orientation": "auto",
+        "showValue": "always",
+        "groupWidth": 0.7,
+        "barWidth": 0.6,
+        "stacking": "none",
+        "xTickLabelRotation": 0,
+        "legend": {
+          "displayMode": "hidden",
+          "placement": "bottom",
+          "showLegend": false
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bar"
+          },
+          "decimals": 0
+        }
+      }
     }
   ],
   "refresh": "15s",
