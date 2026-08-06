@@ -69,6 +69,8 @@ services:
     depends_on:
       db_service:
         condition: service_healthy
+      mlflow:
+        condition: service_healthy
     healthcheck:
       # HTTP-Check direkt gegen den Prefect-Health-Endpunkt
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:4200/api/health', timeout=5)\""]
@@ -86,6 +88,8 @@ services:
     container_name: prefect_worker
     depends_on:
       prefect-server:
+        condition: service_healthy
+      mlflow:
         condition: service_healthy
     volumes:
       - ./data/prefect_volume:/data
@@ -119,6 +123,8 @@ services:
     depends_on:
       prefect-worker:
         condition: service_started
+      mlflow:
+        condition: service_healthy
     ports:
       - "8000:8000"
     volumes:
@@ -129,33 +135,48 @@ services:
       DEFAULT_MODEL_ALIAS: ${DEFAULT_MODEL_ALIAS}
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/ready', timeout=10)\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     networks:
       - fraud-guard-network
 
-  # prometheus:
-  #   image: prom/prometheus:v3.7.3
-  #   ports:
-  #     - "9090:9090"
-  #   volumes:
-  #     - ./prometheus:/etc/prometheus
-  #     - prometheus-data:/prometheus
-  #   command: --web.enable-lifecycle --config.file=/etc/prometheus/prometheus.yaml
-  #   networks:
-  #     - fraud-guard-network
+  prometheus:
+    image: prom/prometheus:v3.7.3
+    container_name: prometheus
+    depends_on:
+      api-service:
+        condition: service_started
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus:/etc/prometheus
+      - prometheus-data:/prometheus
+    command: --web.enable-lifecycle --config.file=/etc/prometheus/prometheus.yaml
+    networks:
+      - fraud-guard-network
 
-  # grafana:
-  #   image: grafana/grafana:13.0.1
-  #   ports:
-  #     - "3000:3000"
-  #   restart: unless-stopped
-  #   volumes:
-  #     - ./grafana/provisioning:/etc/grafana/provisioning
-  #     - ./grafana/dashboards:/etc/grafana/dashboards
-  #     - grafana-data:/var/lib/grafana
-  #   depends_on:
-  #     - prometheus
-  #   networks:
-  #     - fraud-guard-network
+  grafana:
+    image: grafana/grafana:13.0.1
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/etc/grafana/dashboards
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - fraud-guard-network
 
   # evidently_service:
   #   build:
@@ -170,8 +191,8 @@ services:
 volumes:
   mlflow_data:
   dbdata:
-  # grafana-data:
-  # prometheus-data:
+  grafana-data:
+  prometheus-data:
 
 networks:
   fraud-guard-network:

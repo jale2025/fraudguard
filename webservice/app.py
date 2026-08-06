@@ -5,14 +5,20 @@ This module owns the public API surface:
 - GET / for a simple info message
 - GET /health for a liveness check
 - POST /predict for model inference
-- /metrics through prometheus-fastapi-instrumentator for service telemetry
+- /metrics for prometheus monitoring
 """
 
 import io
 import os
-from typing import Annotated, Any
+from typing import Annotated
 
 import pandas as pd
+from api_http_metrics import PREDICTION_REQUESTS
+from api_model_metrics import (
+    MODEL_INFERENCE_DURATION,
+    MODEL_READY,
+    record_prediction_metrics,
+)
 from data_model import (
     TransactionClassificationKnownLabel,
     TransactionClassificationUnknownLabel,
@@ -21,7 +27,8 @@ from data_model import (
 )
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from predict import predict
+from predict import ModelNotAvailableError, ensure_model_available, predict
+from prometheus_client import make_asgi_app
 
 # Load dotenv
 load_dotenv()
@@ -33,75 +40,163 @@ DEFAULT_MODEL_ALIAS = os.environ["DEFAULT_MODEL_ALIAS"]
 
 app = FastAPI(title="Credit Card Fraud Detection API", version="0.1")
 
+# Expose Prometheus metrics on /metrics for Prometheus to scrape.
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
 
-# Expose default FastAPI request metrics on /metrics for Prometheus.
-# Instrumentator().instrument(app).expose(app)
+
 @app.get("/")
 def index():
     """Verify that the API is alive."""
     return {"message": "Credit Card Fraud Detection API"}
 
 
-@app.get("/health")
-def health() -> dict[str, str]:
-    """Check the API liveness."""
-    return {"status": "ok"}
+# # not used so far
+# @app.get("/health")
+# def health() -> dict[str, str]:
+#     """Check the API liveness."""
+#     return {"status": "ok"}
+
+
+@app.get("/ready")
+def readiness() -> dict[str, str]:
+    """Check whether the prediction model is available."""
+    try:
+        ensure_model_available(
+            REGISTERED_MODEL_NAME,
+            DEFAULT_MODEL_ALIAS,
+        )
+    except ModelNotAvailableError as exc:
+        MODEL_READY.set(0)
+
+        raise HTTPException(
+            status_code=503,
+            detail="Prediction model is currently unavailable.",
+        ) from exc
+
+    MODEL_READY.set(1)
+    return {"status": "ready"}
 
 
 @app.post(
     "/predict_single_unknown_label",
     response_model=TransactionClassificationUnknownLabel,
 )
-def predict_transaction_unknown_label(data: TransactionUnknownLabel) -> dict[str, Any]:
+def predict_transaction_unknown_label(
+    data: TransactionUnknownLabel,
+) -> TransactionClassificationUnknownLabel:
     """Run model inference on a transaction and return the classification."""
     # First serve the model prediction. Monitoring should observe this request,
     # but it should not change the prediction result returned to the client.
-    prediction = predict(REGISTERED_MODEL_NAME, data, DEFAULT_MODEL_ALIAS)
-    # try:
-    #     print(f"Sending data to metrics application: {data}")
+    # prediction = predict(REGISTERED_MODEL_NAME, data, DEFAULT_MODEL_ALIAS)
+    endpoint = "predict_single_unknown_label"
+    try:
+        with MODEL_INFERENCE_DURATION.labels(
+            request_type="single",
+        ).time():
+            prediction = predict(
+                REGISTERED_MODEL_NAME,
+                data,
+                DEFAULT_MODEL_ALIAS,
+            )
 
-    #     # Evidently needs both the input features and the model output so it can
-    #     # compare live predictions against the reference distribution.
-    #     monitoring_payload = TransactionClassification(
-    #         **data.model_dump(), prediction=prediction
-    #     ).model_dump()
+        record_prediction_metrics(
+            prediction,
+            request_type="single",
+            ground_truth="unknown",
+        )
 
-    #     # This POST is intentionally fire-and-forget from the API's point of
-    #     # view. If monitoring is slow or unavailable, the client should still
-    #     # receive the prediction response from the model service.
-    #     requests.post(
-    #         MONITORING_URL,
-    #         json=monitoring_payload,
-    #         timeout=5,
-    #     )
-    # except requests.exceptions.ConnectionError as error:
-    #     print(f"Cannot reach a metrics application, error: {error}, data: {data}")
-    # except requests.exceptions.Timeout as error:
-    #     print(f"Metrics application timed out, error: {error}, data: {data}")
+        PREDICTION_REQUESTS.labels(
+            endpoint=endpoint,
+            result="success",
+        ).inc()
 
-    # Return the same payload shape used for monitoring so users can
-    # compare what the client sees with what Evidently receives.
-    print(f"Returning prediction: {prediction}")
-    return TransactionClassificationUnknownLabel(
-        **data.model_dump(), prediction=prediction
-    )
+        print(f"Returning prediction: {prediction}")
+
+        return TransactionClassificationUnknownLabel(
+            **data.model_dump(), prediction=prediction
+        )
+
+    except ModelNotAvailableError as exc:
+        PREDICTION_REQUESTS.labels(
+            endpoint=endpoint,
+            result="model_unavailable",
+        ).inc()
+
+        raise HTTPException(
+            status_code=503,
+            detail="Prediction model is currently unavailable.",
+        ) from exc
+
+    except Exception as exc:
+        PREDICTION_REQUESTS.labels(
+            endpoint=endpoint,
+            result="internal_error",
+        ).inc()
+
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred during prediction.",
+        ) from exc
 
 
 @app.post(
     "/predict_single_known_label", response_model=TransactionClassificationKnownLabel
 )
-def predict_transaction_known_label(data: TransactionKnownLabel) -> dict[str, Any]:
+def predict_transaction_known_label(
+    data: TransactionKnownLabel,
+) -> TransactionClassificationKnownLabel:
     """Run model inference on a transaction and return the classification."""
-    # First serve the model prediction. Monitoring should observe this request,
-    # but it should not change the prediction result returned to the client.
-    prediction = predict(REGISTERED_MODEL_NAME, data, DEFAULT_MODEL_ALIAS)
+    endpoint = "predict_single_known_label"
+    try:
+        with MODEL_INFERENCE_DURATION.labels(
+            request_type="single",
+        ).time():
+            prediction = predict(
+                REGISTERED_MODEL_NAME,
+                data,
+                DEFAULT_MODEL_ALIAS,
+            )
 
-    # Return the same payload shape used for monitoring so users can
-    # compare what the client sees with what Evidently receives.
-    print(f"Returning prediction: {prediction}")
-    return TransactionClassificationKnownLabel(
-        **data.model_dump(), prediction=prediction
-    )
+        record_prediction_metrics(
+            prediction,
+            request_type="single",
+            ground_truth="known",
+            actual=data.target_class,
+        )
+
+        PREDICTION_REQUESTS.labels(
+            endpoint=endpoint,
+            result="success",
+        ).inc()
+
+        print(f"Returning prediction: {prediction}")
+
+        return TransactionClassificationKnownLabel(
+            **data.model_dump(), prediction=prediction
+        )
+
+    except ModelNotAvailableError as exc:
+        PREDICTION_REQUESTS.labels(
+            endpoint=endpoint,
+            result="model_unavailable",
+        ).inc()
+
+        raise HTTPException(
+            status_code=503,
+            detail="Prediction model is currently unavailable.",
+        ) from exc
+
+    except Exception as exc:
+        PREDICTION_REQUESTS.labels(
+            endpoint=endpoint,
+            result="internal_error",
+        ).inc()
+
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred during prediction.",
+        ) from exc
 
 
 @app.post(
@@ -115,12 +210,21 @@ async def predict_transactions_unknown_label(
             description="Parquet file containing the transactions with unknown labels."
         ),
     ],
-) -> list[dict[str, Any]]:
+) -> list[TransactionClassificationUnknownLabel]:
     """Run model inference on a uploaded Parquet file without ground truth."""
-    if not file.filename.endswith(".parquet"):
+    endpoint = "predict_file_unknown_label"
+
+    if not file.filename or not file.filename.lower().endswith(".parquet"):
+        PREDICTION_REQUESTS.labels(
+            endpoint=endpoint,
+            result="invalid_input",
+        ).inc()
+
         raise HTTPException(
-            status_code=400, detail="Only .parquet files are supported."
+            status_code=400,
+            detail="Only .parquet files are supported.",
         )
+
     try:
         # Reading the file byte stream asynchronous from the ram and store it in the variable
         contents = await file.read()
@@ -128,7 +232,19 @@ async def predict_transactions_unknown_label(
         # Transfer the byte array in an object and transform it in a df
         df = pd.read_parquet(io.BytesIO(contents))
 
-        # Trim the df due to tiem reasons
+    except Exception as exc:
+        PREDICTION_REQUESTS.labels(
+            endpoint=endpoint,
+            result="invalid_input",
+        ).inc()
+
+        raise HTTPException(
+            status_code=400,
+            detail="The uploaded file is not a valid Parquet file.",
+        ) from exc
+
+    try:
+        # Trim the df due to time limitation
         df = df.iloc[:500].copy()
 
         # Column mapping for the time, amount and the 'V' columns
@@ -138,19 +254,56 @@ async def predict_transactions_unknown_label(
         # Rename the columns
         df = df.rename(columns=column_mapping)
 
-        # Apply the predict function on the df
-        predictions = predict(REGISTERED_MODEL_NAME, df, DEFAULT_MODEL_ALIAS)
+        with MODEL_INFERENCE_DURATION.labels(
+            request_type="file",
+        ).time():
+            predictions = predict(
+                REGISTERED_MODEL_NAME,
+                df,
+                DEFAULT_MODEL_ALIAS,
+            )
+
+        record_prediction_metrics(
+            predictions,
+            request_type="file",
+            ground_truth="unknown",
+        )
 
         # Add another column for the predictions
         df["prediction"] = predictions
 
-        # Return the df as a list of dictionaries
-        return df.to_dict(orient="records")
+        PREDICTION_REQUESTS.labels(
+            endpoint=endpoint,
+            result="success",
+        ).inc()
 
-    except Exception as e:
+        # Return the df as a list of dictionaries
+        return [
+            TransactionClassificationUnknownLabel.model_validate(record)
+            for record in df.to_dict(orient="records")
+        ]
+
+    except ModelNotAvailableError as exc:
+        PREDICTION_REQUESTS.labels(
+            endpoint=endpoint,
+            result="model_unavailable",
+        ).inc()
+
         raise HTTPException(
-            status_code=500, detail=f"Error processing Parquet file: {str(e)}"
-        ) from e
+            status_code=503,
+            detail="Prediction model is currently unavailable.",
+        ) from exc
+
+    except Exception as exc:
+        PREDICTION_REQUESTS.labels(
+            endpoint=endpoint,
+            result="internal_error",
+        ).inc()
+
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred during prediction.",
+        ) from exc
 
 
 @app.post(
@@ -162,12 +315,21 @@ async def predict_transactions_known_label(
         UploadFile,
         File(description="Parquet file containing the transactions with known labels."),
     ],
-) -> list[dict[str, Any]]:
+) -> list[TransactionClassificationKnownLabel]:
     """Run model inference on an uploaded Parquet file with known labels."""
-    if not file.filename.endswith(".parquet"):
+    endpoint = "predict_file_known_label"
+
+    if not file.filename or not file.filename.lower().endswith(".parquet"):
+        PREDICTION_REQUESTS.labels(
+            endpoint=endpoint,
+            result="invalid_input",
+        ).inc()
+
         raise HTTPException(
-            status_code=400, detail="Only .parquet files are supported."
+            status_code=400,
+            detail="Only .parquet files are supported.",
         )
+
     try:
         # Reading the file byte stream asynchronous from the ram and store it in the variable
         contents = await file.read()
@@ -175,7 +337,19 @@ async def predict_transactions_known_label(
         # Transfer the byte array in an object and transform it in a df
         df = pd.read_parquet(io.BytesIO(contents))
 
-        # Trim the df due to tiem reasons
+    except Exception as exc:
+        PREDICTION_REQUESTS.labels(
+            endpoint=endpoint,
+            result="invalid_input",
+        ).inc()
+
+        raise HTTPException(
+            status_code=400,
+            detail="The uploaded file is not a valid Parquet file.",
+        ) from exc
+
+    try:
+        # Trim the df due to time limitations
         df = df.iloc[:500].copy()
 
         # # Column mapping for the time, amount and the 'V' columns
@@ -189,22 +363,69 @@ async def predict_transactions_known_label(
         # Rename the columns
         df = df.rename(columns=column_mapping)
 
-        # Extract the 'class' column
-        df_class_col = df["class"]
+        if "class" not in df.columns:
+            PREDICTION_REQUESTS.labels(
+                endpoint=endpoint,
+                result="invalid_input",
+            ).inc()
 
-        # Apply the predict function on the df
-        predictions = predict(REGISTERED_MODEL_NAME, df, DEFAULT_MODEL_ALIAS)
+            raise HTTPException(
+                status_code=422,
+                detail="The Parquet file must contain a 'Class' column.",
+            )
 
-        # Add another column for the predictions
+        actual_labels = df["class"].astype(int).tolist()
+
+        with MODEL_INFERENCE_DURATION.labels(
+            request_type="file",
+        ).time():
+            predictions = predict(
+                REGISTERED_MODEL_NAME,
+                df,
+                DEFAULT_MODEL_ALIAS,
+            )
+
         df["prediction"] = predictions
 
-        # Add the 'class' column to the df after extracting earlier
-        df["class"] = df_class_col
+        record_prediction_metrics(
+            predictions,
+            request_type="file",
+            ground_truth="known",
+            actual=actual_labels,
+        )
+
+        PREDICTION_REQUESTS.labels(
+            endpoint=endpoint,
+            result="success",
+        ).inc()
 
         # Return the df as a list of dictionaries
-        return df.to_dict(orient="records")
+        return [
+            TransactionClassificationKnownLabel.model_validate(record)
+            for record in df.to_dict(orient="records")
+        ]
 
-    except Exception as e:
+    except HTTPException:
+        raise
+
+    except ModelNotAvailableError as exc:
+        PREDICTION_REQUESTS.labels(
+            endpoint=endpoint,
+            result="model_unavailable",
+        ).inc()
+
         raise HTTPException(
-            status_code=500, detail=f"Error processing Parquet file: {str(e)}"
-        ) from e
+            status_code=503,
+            detail="Prediction model is currently unavailable.",
+        ) from exc
+
+    except Exception as exc:
+        PREDICTION_REQUESTS.labels(
+            endpoint=endpoint,
+            result="internal_error",
+        ).inc()
+
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected error occurred during prediction.",
+        ) from exc

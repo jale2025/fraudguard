@@ -1,0 +1,13 @@
+groups:
+  - name: fraudguard-api-availability
+    rules:
+      - alert: FraudGuardApiDown
+        expr: up{job="fraudguard-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: fraudguard-api
+        annotations:
+          summary: "FraudGuard API does not respond"
+          description: >
+            Prometheus could not scrape the metrics of the fraudguard api-service for at least one minute.
