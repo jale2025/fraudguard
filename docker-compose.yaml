@@ -133,6 +133,7 @@ services:
       MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
       MODEL_NAME: ${MODEL_NAME}
       DEFAULT_MODEL_ALIAS: ${DEFAULT_MODEL_ALIAS}
+      DB_URI: ${DB_URI}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:

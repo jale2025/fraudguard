@@ -19,6 +19,7 @@ from api_model_metrics import (
     MODEL_READY,
     record_prediction_metrics,
 )
+from api_to_database import forward_to_database
 from data_model import (
     TransactionClassificationKnownLabel,
     TransactionClassificationUnknownLabel,
@@ -113,9 +114,14 @@ def predict_transaction_unknown_label(
 
         print(f"Returning prediction: {prediction}")
 
-        return TransactionClassificationUnknownLabel(
+        response = TransactionClassificationUnknownLabel(
             **data.model_dump(), prediction=prediction
         )
+
+        # Call the function to forward the incoming transactions into database
+        forward_to_database(table_name="predictions", data=response)
+
+        return response
 
     except ModelNotAvailableError as exc:
         PREDICTION_REQUESTS.labels(
@@ -172,9 +178,14 @@ def predict_transaction_known_label(
 
         print(f"Returning prediction: {prediction}")
 
-        return TransactionClassificationKnownLabel(
+        response = TransactionClassificationKnownLabel(
             **data.model_dump(), prediction=prediction
         )
+
+        # Call the function to forward the incoming transactions into database
+        forward_to_database(table_name="labeled_predictions_queue", data=response)
+
+        return response
 
     except ModelNotAvailableError as exc:
         PREDICTION_REQUESTS.labels(
@@ -271,6 +282,9 @@ async def predict_transactions_unknown_label(
 
         # Add another column for the predictions
         df["prediction"] = predictions
+
+        # Call the function to forward the incoming transactions into database
+        forward_to_database(table_name="predictions", data=df)
 
         PREDICTION_REQUESTS.labels(
             endpoint=endpoint,
@@ -386,6 +400,9 @@ async def predict_transactions_known_label(
             )
 
         df["prediction"] = predictions
+
+        # Call the function to forward the incoming transactions into database
+        forward_to_database(table_name="labeled_predictions_queue", data=df)
 
         record_prediction_metrics(
             predictions,
