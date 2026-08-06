@@ -188,14 +188,14 @@ def predict_transaction_known_label(
 
         # Connect to the redis container
         r = redis.Redis(
-            host=os.getenv("REDIS_HOST"),
+            host=os.environ["REDIS_HOST"],
             port=6379,
             db=0,
             decode_responses=True
         )
 
         # Get the global counter value
-        global_transactions_since_last_evidently_report = r.get(name="global_transactions_since_last_evidently_report")
+        global_transactions_since_last_evidently_report = int(r.get(name="global_transactions_since_last_evidently_report"))
 
         threshold_queue_counter = 10
 
@@ -432,7 +432,7 @@ async def predict_transactions_known_label(
         )
 
         # Get the global counter value
-        global_transactions_since_last_evidently_report = r.get(name="global_transactions_since_last_evidently_report")
+        global_transactions_since_last_evidently_report = int(r.get(name="global_transactions_since_last_evidently_report"))
 
         threshold_queue_counter = 10
 
