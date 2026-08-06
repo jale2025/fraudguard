@@ -13,6 +13,7 @@ import os
 from typing import Annotated
 
 import pandas as pd
+import redis
 from api_http_metrics import PREDICTION_REQUESTS
 from api_model_metrics import (
     MODEL_INFERENCE_DURATION,
@@ -184,6 +185,24 @@ def predict_transaction_known_label(
 
         # Call the function to forward the incoming transactions into database
         forward_to_database(table_name="labeled_predictions_queue", data=response)
+
+        # Connect to the redis container
+        r = redis.Redis(
+            host=os.getenv("REDIS_HOST"),
+            port=6379,
+            db=0,
+            decode_responses=True
+        )
+
+        # Get the global counter value
+        global_transactions_since_last_evidently_report = r.get(name="global_transactions_since_last_evidently_report")
+
+        threshold_queue_counter = 10
+
+        # If the condition is fulfilled evidently report generation will be triggered
+        if global_transactions_since_last_evidently_report >= threshold_queue_counter:
+            r.set(name="global_transactions_since_last_evidently_report", value=0)
+            print(f"DEBUG: global_transactions_since_last_evidently_report = {r.get(name='global_transactions_since_last_evidently_report')}")
 
         return response
 
@@ -403,6 +422,24 @@ async def predict_transactions_known_label(
 
         # Call the function to forward the incoming transactions into database
         forward_to_database(table_name="labeled_predictions_queue", data=df)
+
+        # Connect to the redis container
+        r = redis.Redis(
+            host=os.getenv("REDIS_HOST"),
+            port=6379,
+            db=0,
+            decode_responses=True
+        )
+
+        # Get the global counter value
+        global_transactions_since_last_evidently_report = r.get(name="global_transactions_since_last_evidently_report")
+
+        threshold_queue_counter = 10
+
+        # If the condition is fulfilled evidently report generation will be triggered
+        if global_transactions_since_last_evidently_report >= threshold_queue_counter:
+            r.set(name="global_transactions_since_last_evidently_report", value=0)
+            print(f"DEBUG: global_transactions_since_last_evidently_report = {r.get(name='global_transactions_since_last_evidently_report')}")
 
         record_prediction_metrics(
             predictions,

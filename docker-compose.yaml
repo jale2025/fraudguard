@@ -1,4 +1,13 @@
 services:
+  redis:
+    image: redis:alpine
+    container_name: global_counter_redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+  
   db_service:
     image: postgres:17
     container_name: postgres_db
@@ -111,6 +120,7 @@ services:
       DB_DATABASE: ${DB_DATABASE}
       DB_TABLE_NAME: ${DB_TABLE_NAME}
       DB_URI: ${DB_URI}
+      REDIS_HOST: redis
 
     networks:
       - fraud-guard-network
@@ -134,6 +144,7 @@ services:
       MODEL_NAME: ${MODEL_NAME}
       DEFAULT_MODEL_ALIAS: ${DEFAULT_MODEL_ALIAS}
       DB_URI: ${DB_URI}
+      REDIS_HOST: redis
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
@@ -179,6 +190,7 @@ services:
     networks:
       - fraud-guard-network
 
+
   # evidently_service:
   #   build:
   #     context: evidently_service
@@ -194,6 +206,7 @@ volumes:
   dbdata:
   grafana-data:
   prometheus-data:
+  redis_data:
 
 networks:
   fraud-guard-network:

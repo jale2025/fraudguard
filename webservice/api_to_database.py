@@ -3,6 +3,7 @@ import os
 from time import time
 
 import pandas as pd
+import redis
 from data_model import (
     TransactionClassificationKnownLabel,
     TransactionClassificationUnknownLabel,
@@ -14,7 +15,19 @@ DB_URI = os.getenv("DB_URI")
 
 
 def forward_to_database(table_name: str, data: pd.DataFrame | TransactionClassificationKnownLabel | TransactionClassificationUnknownLabel):
+    """
+    Forward data to the database in batches.
 
+    Args:
+        table_name: Name of the target database table.
+        data: DataFrame or transaction classification object to insert.
+
+    Raises:
+        IntegrityError: On duplicate keys or constraint violations.
+        ProgrammingError: On schema mismatches.
+        SQLAlchemyError: On general database errors.
+
+    """
     # Create the sql alchemy engine object
     engine = create_engine(DB_URI)
 
@@ -40,6 +53,20 @@ def forward_to_database(table_name: str, data: pd.DataFrame | TransactionClassif
             batch_df.to_sql(
                 f"{table_name}", engine, if_exists="append", index=False, schema="raw"
             )
+
+            # Connect to the redis container
+            r = redis.Redis(
+                host=os.getenv("REDIS_HOST"),
+                port=6379,
+                db=0,
+                decode_responses=True
+            )
+
+            # Increase the global counter
+            r.incr(name="global_queue_length", amount=total_rows)
+            r.incr(name="global_transactions_since_last_evidently_report", amount=total_rows)
+
+
         except IntegrityError as e:
             # Triggered by duplicate keys or NOT NULL constraint violations
             print(
