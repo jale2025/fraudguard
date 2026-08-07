@@ -7,7 +7,7 @@ from src.data_helper import data_available
 
 
 @flow(name="fraud_detection_pipeline", timeout_seconds=1500)
-def fraudguard_pipeline(is_triggered_by_evidently: bool=False) -> None:
+def fraudguard_pipeline(is_triggered_by_evidently: bool = False) -> None:
     """Execute the complete fraud detection pipeline triggered by a cron job."""
     logger = get_run_logger()
 
@@ -38,7 +38,9 @@ def fraudguard_pipeline(is_triggered_by_evidently: bool=False) -> None:
 
     # Create new dbt prod schema
     if new_model_registered:
-        dbt_success = dbt_build(project_dir=os.environ["DBT_PROJECT_DIR"], target="prod")
+        dbt_success = dbt_build(
+            project_dir=os.environ["DBT_PROJECT_DIR"], target="prod"
+        )
 
 
 if __name__ == "__main__":

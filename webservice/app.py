@@ -131,7 +131,10 @@ def predict_transaction_unknown_label(
         forward_to_database(table_name="predictions", data=response)
 
         # Call the function for creating an evidently report and trigger the prefect workflow
-        create_report_and_trigger_workflow(counter_name="not_labeled_queue", current_data_query="SELECT * FROM raw.predictions ORDER BY elapsed_sec, pc_1")
+        create_report_and_trigger_workflow(
+            counter_name="not_labeled_queue",
+            current_data_query="SELECT * FROM raw.predictions ORDER BY elapsed_sec, pc_1",
+        )
 
         return response
 
@@ -198,7 +201,10 @@ def predict_transaction_known_label(
         forward_to_database(table_name="labeled_predictions_queue", data=response)
 
         # Call the function for creating an evidently report and trigger the prefect workflow
-        create_report_and_trigger_workflow(counter_name="labeled_queue", current_data_query="SELECT * FROM raw.labeled_predictions_queue ORDER BY elapsed_sec, pc_1")
+        create_report_and_trigger_workflow(
+            counter_name="labeled_queue",
+            current_data_query="SELECT * FROM raw.labeled_predictions_queue ORDER BY elapsed_sec, pc_1",
+        )
 
         return response
 
@@ -302,7 +308,10 @@ async def predict_transactions_unknown_label(
         forward_to_database(table_name="predictions", data=df)
 
         # Call the function for creating an evidently report and trigger the prefect workflow
-        create_report_and_trigger_workflow(counter_name="not_labeled_queue", current_data_query="SELECT * FROM raw.predictions ORDER BY elapsed_sec, pc_1")
+        create_report_and_trigger_workflow(
+            counter_name="not_labeled_queue",
+            current_data_query="SELECT * FROM raw.predictions ORDER BY elapsed_sec, pc_1",
+        )
 
         PREDICTION_REQUESTS.labels(
             endpoint=endpoint,
@@ -422,8 +431,11 @@ async def predict_transactions_known_label(
         # Call the function to forward the incoming transactions into database
         forward_to_database(table_name="labeled_predictions_queue", data=df)
 
-       # Call the function for creating an evidently report and trigger the prefect workflow
-        create_report_and_trigger_workflow(counter_name="labeled_queue", current_data_query="SELECT * FROM raw.labeled_predictions_queue ORDER BY elapsed_sec, pc_1")
+        # Call the function for creating an evidently report and trigger the prefect workflow
+        create_report_and_trigger_workflow(
+            counter_name="labeled_queue",
+            current_data_query="SELECT * FROM raw.labeled_predictions_queue ORDER BY elapsed_sec, pc_1",
+        )
 
         record_prediction_metrics(
             predictions,
@@ -469,7 +481,9 @@ async def predict_transactions_known_label(
         ) from exc
 
 
-def create_report_and_trigger_workflow(counter_name: str, current_data_query: str) -> None:
+def create_report_and_trigger_workflow(
+    counter_name: str, current_data_query: str
+) -> None:
     """
     Create the evidently report and trigger the prefect workflow if the precondition is fulfilled.
 
@@ -480,10 +494,7 @@ def create_report_and_trigger_workflow(counter_name: str, current_data_query: st
     """
     # Connect to the redis container
     r = redis.Redis(
-        host=os.environ["REDIS_HOST"],
-        port=6379,
-        db=0,
-        decode_responses=True
+        host=os.environ["REDIS_HOST"], port=6379, db=0, decode_responses=True
     )
 
     # Get the global counter value
@@ -491,16 +502,22 @@ def create_report_and_trigger_workflow(counter_name: str, current_data_query: st
 
     # If the condition is fulfilled evidently report generation will be triggered
     if queue_counter_since_last_report >= THRESHOLD_QUEUE_COUNTER:
-
         # Read the labeled queue as the current dataset
-        current_data = get_data_from_postgresql_db(db_uri=DB_URI, query=current_data_query)
+        current_data = get_data_from_postgresql_db(
+            db_uri=DB_URI, query=current_data_query
+        )
         current_data.drop(columns=["ingestion_time", "prediction"], inplace=True)
 
         # Read the fct training data as the reference dataset (prod)
-        reference_data = get_data_from_postgresql_db(db_uri=DB_URI, query="SELECT * FROM dbt_prod_data_science.fct_training_data ORDER BY elapsed_sec, pc_1")
+        reference_data = get_data_from_postgresql_db(
+            db_uri=DB_URI,
+            query="SELECT * FROM dbt_prod_data_science.fct_training_data ORDER BY elapsed_sec, pc_1",
+        )
 
         # Call the evidently data drift report execution
-        data_drift_detected = create_and_forward_data_drift_report_to_prometheus(reference_data=reference_data, current_data=current_data)
+        data_drift_detected = create_and_forward_data_drift_report_to_prometheus(
+            reference_data=reference_data, current_data=current_data
+        )
 
         # If data drift was detected, trigger the fast api endpoint which starts the prefect workflow to retrain the model
         if data_drift_detected:

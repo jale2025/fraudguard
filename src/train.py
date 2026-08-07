@@ -31,10 +31,10 @@ def get_training_data() -> pd.DataFrame:
     """
     # Get all data of the postgresql database
     df_fraud_detection_sql = pl.read_database_uri(
-            query="SELECT * FROM dbt_dev_data_science.fct_training_data ORDER BY elapsed_sec, pc_1",
-            uri=DB_URI,
-            engine="adbc",
-        )
+        query="SELECT * FROM dbt_dev_data_science.fct_training_data ORDER BY elapsed_sec, pc_1",
+        uri=DB_URI,
+        engine="adbc",
+    )
     # return pandas df
     return df_fraud_detection_sql.to_pandas()
 

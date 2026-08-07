@@ -1,4 +1,3 @@
-
 import os
 from time import time
 
@@ -14,7 +13,12 @@ from sqlalchemy.exc import IntegrityError, ProgrammingError, SQLAlchemyError
 DB_URI = os.getenv("DB_URI")
 
 
-def forward_to_database(table_name: str, data: pd.DataFrame | TransactionClassificationKnownLabel | TransactionClassificationUnknownLabel):
+def forward_to_database(
+    table_name: str,
+    data: pd.DataFrame
+    | TransactionClassificationKnownLabel
+    | TransactionClassificationUnknownLabel,
+):
     """
     Forward data to the database in batches.
 
@@ -31,8 +35,13 @@ def forward_to_database(table_name: str, data: pd.DataFrame | TransactionClassif
     # Create the sql alchemy engine object
     engine = create_engine(DB_URI)
 
-    if isinstance(data, (TransactionClassificationKnownLabel, TransactionClassificationUnknownLabel)):
-        print("DEBUG: is instance TransactionClassificationKnownLabel or TransactionClassificationUnknownLabel")
+    if isinstance(
+        data,
+        (TransactionClassificationKnownLabel, TransactionClassificationUnknownLabel),
+    ):
+        print(
+            "DEBUG: is instance TransactionClassificationKnownLabel or TransactionClassificationUnknownLabel"
+        )
         data = pd.DataFrame([data.model_dump()]).copy()
 
     batch_size = 100000
@@ -43,7 +52,6 @@ def forward_to_database(table_name: str, data: pd.DataFrame | TransactionClassif
         data.rename(columns={"target_class": "class"}, inplace=True)
 
     for batch_idx, start_row in enumerate(range(0, total_rows, batch_size)):
-
         start_time = time()
 
         # Batch als Slice aus dem DataFrame extrahieren
@@ -56,14 +64,11 @@ def forward_to_database(table_name: str, data: pd.DataFrame | TransactionClassif
 
             # Connect to the redis container
             r = redis.Redis(
-                host=os.getenv("REDIS_HOST"),
-                port=6379,
-                db=0,
-                decode_responses=True
+                host=os.getenv("REDIS_HOST"), port=6379, db=0, decode_responses=True
             )
 
             # Increase the global counter
-            if table_name=="predictions":
+            if table_name == "predictions":
                 r.incr(name="not_labeled_queue", amount=total_rows)
                 r.incr(name="not_labeled_queue_length", amount=total_rows)
 
@@ -95,5 +100,3 @@ def forward_to_database(table_name: str, data: pd.DataFrame | TransactionClassif
         end_time = time()
         print(f"Batch {batch_idx} execution time: {end_time - start_time:.2f} seconds")
     print("Finished writing to database!")
-
-
