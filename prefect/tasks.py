@@ -123,7 +123,7 @@ def get_data_train_model(
         dict: Dictionary containing training results and metrics.
 
     """
-    df_train_data = get_training_data(db_table_name=db_table_name)
+    df_train_data = get_training_data()
     train_result = train_model(
         df_training_data=df_train_data,
         target_label=target_label,
@@ -141,7 +141,7 @@ def model_registration(
     model_alias: str = DEFAULT_MODEL_ALIAS,
     mlflow_tracking_uri: str = MLFLOW_TRACKING_URI,
     timeout_seconds: int = 60,
-) -> None:
+) -> bool:
     """
     Register the trained model in MLflow.
 
@@ -153,7 +153,7 @@ def model_registration(
         timeout_seconds (int): Timeout for registration operations.
 
     """
-    register_model(
+    return register_model(
         rnd_search_cv_obj=train_result_dict["model"],
         training_rows=train_result_dict["training_rows"],
         test_rows=train_result_dict["test_rows"],

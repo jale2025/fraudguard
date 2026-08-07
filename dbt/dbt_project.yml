@@ -39,8 +39,8 @@ models:
       +schema: staging
     intermediate:
       +materialized: table
-      +schema: intermediate
+      +schema: int
     mart:
       +materialized: table
       # driver:
-      #   +schema: mart
+      +schema: data_science

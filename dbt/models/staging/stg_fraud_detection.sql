@@ -1,4 +1,4 @@
-{{ config(materialized='table', schema='stg') }}
+-- {{ config(materialized='table', schema='stg') }}
 
 select 
     "Time" as elapsed_sec,

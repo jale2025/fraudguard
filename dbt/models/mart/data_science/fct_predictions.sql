@@ -1,4 +1,4 @@
-{{ config(materialized='table', schema='data_science') }}
+-- {{ config(materialized='table', schema='data_science') }}
 
 
 select

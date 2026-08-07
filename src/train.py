@@ -21,41 +21,19 @@ DBT_SCHEMA = os.environ["DBT_SCHEMA"]
 SEED = 42
 
 
-def get_data_from_postgresql_db(db_uri: str, target: str) -> pl.DataFrame:
-    """
-    Read data from the postgresql database.
-
-    Args:
-        db_uri (str): Postgresql database uri
-        target (str): Main schema of the _data_science_fct_training_data table to query
-
-    Returns:
-        pl.DataFrame: Get all data from the postgresql database.
-
-    """
-    df = pl.read_database_uri(
-        query=f"SELECT * FROM dbt_{target}_data_science.fct_training_data ORDER BY elapsed_sec, pc_1",
-        uri=db_uri,
-        engine="adbc",
-    )
-    return df
-
-
-def get_training_data(db_table_name=DBT_SCHEMA, db_uri=DB_URI) -> pd.DataFrame:
+def get_training_data() -> pd.DataFrame:
     """
     Load training data from PostgreSQL and return it as a pandas DataFrame.
-
-    Args:
-        db_table_name (str, optional): Target dbt schema name. Defaults to DBT_SCHEMA.
-        db_uri (str, optional): PostgreSQL database URI. Defaults to DB_URI.
 
     Returns:
         pd.DataFrame: Training data.
 
     """
     # Get all data of the postgresql database
-    df_fraud_detection_sql = get_data_from_postgresql_db(
-        db_uri=db_uri, target=db_table_name
+    df_fraud_detection_sql = pl.read_database_uri(
+        query="SELECT * FROM dbt_dev_data_science.fct_training_data ORDER BY elapsed_sec, pc_1",
+        uri=DB_URI,
+        engine="adbc",
     )
     # return pandas df
     return df_fraud_detection_sql.to_pandas()

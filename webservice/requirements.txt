@@ -11,3 +11,6 @@ rich==15.0.0
 fastapi==0.141.1
 uvicorn==0.52.1
 pydantic==2.13.4
+redis==8.0.1
+evidently==0.7.21
+prefect==3.8.0

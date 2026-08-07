@@ -7,7 +7,7 @@ from src.data_helper import data_available
 
 
 @flow(name="fraud_detection_pipeline", timeout_seconds=1500)
-def fraudguard_pipeline() -> None:
+def fraudguard_pipeline(is_triggered_by_evidently: bool = False) -> None:
     """Execute the complete fraud detection pipeline triggered by a cron job."""
     logger = get_run_logger()
 
@@ -27,14 +27,20 @@ def fraudguard_pipeline() -> None:
         )
 
     # If data ingestion has taken place, run the dbt build task
-    if data_ingested:
+    if data_ingested or is_triggered_by_evidently:
         dbt_success = dbt_build(project_dir=os.environ["DBT_PROJECT_DIR"], target="dev")
         logger.info(f"DBT build successful: {dbt_success}")
 
     # If dbt build was successful, load the the training dataset and train the model
     if dbt_success:
         train_result_dict = get_data_train_model()
-        model_registration(train_result_dict)
+        new_model_registered = model_registration(train_result_dict)
+
+    # Create new dbt prod schema
+    if new_model_registered:
+        dbt_success = dbt_build(
+            project_dir=os.environ["DBT_PROJECT_DIR"], target="prod"
+        )
 
 
 if __name__ == "__main__":
