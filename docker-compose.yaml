@@ -147,6 +147,7 @@ services:
       DEFAULT_MODEL_ALIAS: ${DEFAULT_MODEL_ALIAS}
       DB_URI: ${DB_URI}
       REDIS_HOST: redis
+      PREFECT_API_URL: ${PREFECT_API_URL}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:

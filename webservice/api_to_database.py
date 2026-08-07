@@ -63,9 +63,13 @@ def forward_to_database(table_name: str, data: pd.DataFrame | TransactionClassif
             )
 
             # Increase the global counter
-            r.incr(name="global_queue_length", amount=total_rows)
-            r.incr(name="global_transactions_since_last_evidently_report", amount=total_rows)
+            if table_name=="predictions":
+                r.incr(name="not_labeled_queue", amount=total_rows)
+                r.incr(name="not_labeled_queue_length", amount=total_rows)
 
+            elif table_name == "labeled_predictions_queue":
+                r.incr(name="labeled_queue", amount=total_rows)
+                r.incr(name="labeled_queue_length", amount=total_rows)
 
         except IntegrityError as e:
             # Triggered by duplicate keys or NOT NULL constraint violations

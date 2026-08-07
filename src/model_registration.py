@@ -47,7 +47,7 @@ def register_model(
     model_alias: str = DEFAULT_MODEL_ALIAS,
     mlflow_tracking_uri: str = MLFLOW_TRACKING_URI,
     timeout_seconds: int = 60,
-) -> None:
+) -> bool:
     """
     Register the best model in MLflow and promote it to production if it outperforms the current production model.
 
@@ -163,6 +163,8 @@ def register_model(
             f"Updated MLflow alias '{model_alias}' -> Version {model_version.version}."
         )
 
+        return True
+
     else:
         print(
             f"No improvement. Current Test Recall ({recall_test:.4f}) "
@@ -170,4 +172,4 @@ def register_model(
             # f"Local .skops file and Production alias remain unchanged."
         )
 
-    return
+    return False

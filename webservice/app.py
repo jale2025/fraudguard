@@ -28,9 +28,16 @@ from data_model import (
     TransactionUnknownLabel,
 )
 from dotenv import load_dotenv
+from evidently_helper import (
+    create_and_forward_data_drift_report_to_prometheus,
+    get_data_from_postgresql_db,
+)
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from predict import ModelNotAvailableError, ensure_model_available, predict
+from prefect.deployments import run_deployment
 from prometheus_client import make_asgi_app
+
+THRESHOLD_QUEUE_COUNTER = 10
 
 # Load dotenv
 load_dotenv()
@@ -39,6 +46,7 @@ load_dotenv()
 MLFLOW_TRACKING_URI = os.environ["MLFLOW_TRACKING_URI"]
 REGISTERED_MODEL_NAME = os.environ["MODEL_NAME"]
 DEFAULT_MODEL_ALIAS = os.environ["DEFAULT_MODEL_ALIAS"]
+DB_URI = os.environ["DB_URI"]
 
 app = FastAPI(title="Credit Card Fraud Detection API", version="0.1")
 
@@ -122,6 +130,9 @@ def predict_transaction_unknown_label(
         # Call the function to forward the incoming transactions into database
         forward_to_database(table_name="predictions", data=response)
 
+        # Call the function for creating an evidently report and trigger the prefect workflow
+        create_report_and_trigger_workflow(counter_name="not_labeled_queue", current_data_query="SELECT * FROM raw.predictions ORDER BY elapsed_sec, pc_1")
+
         return response
 
     except ModelNotAvailableError as exc:
@@ -186,23 +197,8 @@ def predict_transaction_known_label(
         # Call the function to forward the incoming transactions into database
         forward_to_database(table_name="labeled_predictions_queue", data=response)
 
-        # Connect to the redis container
-        r = redis.Redis(
-            host=os.environ["REDIS_HOST"],
-            port=6379,
-            db=0,
-            decode_responses=True
-        )
-
-        # Get the global counter value
-        global_transactions_since_last_evidently_report = int(r.get(name="global_transactions_since_last_evidently_report"))
-
-        threshold_queue_counter = 10
-
-        # If the condition is fulfilled evidently report generation will be triggered
-        if global_transactions_since_last_evidently_report >= threshold_queue_counter:
-            r.set(name="global_transactions_since_last_evidently_report", value=0)
-            print(f"DEBUG: global_transactions_since_last_evidently_report = {r.get(name='global_transactions_since_last_evidently_report')}")
+        # Call the function for creating an evidently report and trigger the prefect workflow
+        create_report_and_trigger_workflow(counter_name="labeled_queue", current_data_query="SELECT * FROM raw.labeled_predictions_queue ORDER BY elapsed_sec, pc_1")
 
         return response
 
@@ -304,6 +300,9 @@ async def predict_transactions_unknown_label(
 
         # Call the function to forward the incoming transactions into database
         forward_to_database(table_name="predictions", data=df)
+
+        # Call the function for creating an evidently report and trigger the prefect workflow
+        create_report_and_trigger_workflow(counter_name="not_labeled_queue", current_data_query="SELECT * FROM raw.predictions ORDER BY elapsed_sec, pc_1")
 
         PREDICTION_REQUESTS.labels(
             endpoint=endpoint,
@@ -423,23 +422,8 @@ async def predict_transactions_known_label(
         # Call the function to forward the incoming transactions into database
         forward_to_database(table_name="labeled_predictions_queue", data=df)
 
-        # Connect to the redis container
-        r = redis.Redis(
-            host=os.getenv("REDIS_HOST"),
-            port=6379,
-            db=0,
-            decode_responses=True
-        )
-
-        # Get the global counter value
-        global_transactions_since_last_evidently_report = int(r.get(name="global_transactions_since_last_evidently_report"))
-
-        threshold_queue_counter = 10
-
-        # If the condition is fulfilled evidently report generation will be triggered
-        if global_transactions_since_last_evidently_report >= threshold_queue_counter:
-            r.set(name="global_transactions_since_last_evidently_report", value=0)
-            print(f"DEBUG: global_transactions_since_last_evidently_report = {r.get(name='global_transactions_since_last_evidently_report')}")
+       # Call the function for creating an evidently report and trigger the prefect workflow
+        create_report_and_trigger_workflow(counter_name="labeled_queue", current_data_query="SELECT * FROM raw.labeled_predictions_queue ORDER BY elapsed_sec, pc_1")
 
         record_prediction_metrics(
             predictions,
@@ -483,3 +467,46 @@ async def predict_transactions_known_label(
             status_code=500,
             detail="An unexpected error occurred during prediction.",
         ) from exc
+
+
+def create_report_and_trigger_workflow(counter_name: str, current_data_query: str) -> None:
+    """
+    Create the evidently report and trigger the prefect workflow if the precondition is fulfilled.
+
+    Args:
+        counter_name (str): Counter name
+        current_data_query (str): SQL query for the current dataset.
+
+    """
+    # Connect to the redis container
+    r = redis.Redis(
+        host=os.environ["REDIS_HOST"],
+        port=6379,
+        db=0,
+        decode_responses=True
+    )
+
+    # Get the global counter value
+    queue_counter_since_last_report = int(r.get(name=counter_name))
+
+    # If the condition is fulfilled evidently report generation will be triggered
+    if queue_counter_since_last_report >= THRESHOLD_QUEUE_COUNTER:
+        r.set(name=counter_name, value=0)
+
+        # Read the labeled queue as the current dataset
+        current_data = get_data_from_postgresql_db(db_uri=DB_URI, query=current_data_query)
+        current_data.drop(columns=["ingestion_time", "prediction"], inplace=True)
+
+        # Read the fct training data as the reference dataset (prod)
+        reference_data = get_data_from_postgresql_db(db_uri=DB_URI, query="SELECT * FROM dbt_prod_data_science.fct_training_data ORDER BY elapsed_sec, pc_1")
+
+        # Call the evidently data drift report execution
+        data_drift_detected = create_and_forward_data_drift_report_to_prometheus(reference_data=reference_data, current_data=current_data)
+
+        # If data drift was detected, trigger the fast api endpoint which starts the prefect workflow to retrain the model
+        if data_drift_detected:
+            run_deployment(
+                name="fraud_detection_pipeline/fraud_detection_pipeline_hourly_serve",
+                parameters={"is_triggered_by_evidently": True},
+                timeout=0
+            )
