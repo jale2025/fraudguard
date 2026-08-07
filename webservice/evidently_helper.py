@@ -1,7 +1,4 @@
-import json
 import os
-import tempfile
-from pathlib import Path
 
 import pandas as pd
 import polars as pl
@@ -15,88 +12,68 @@ from evidently import Report
 from evidently.presets import DataDriftPreset
 
 # Read environment variables
-DB_URI = os.environ["DB_URI"]
+DB_URI = os.environ.get("DB_URI", "")
 
-def get_data_from_postgresql_db(db_uri: str, query: str) -> pl.DataFrame:
-    """
-    Read data from the postgresql database.
+DRIFT_SHARE_THRESHOLD = 0.5
 
-    Args:
-        db_uri (str): Postgresql database uri
-        query (str): SQL query
+_DRIFTED_COUNT_TYPE = "evidently:metric_v2:DriftedColumnsCount"
+_VALUE_DRIFT_TYPE = "evidently:metric_v2:ValueDrift"
 
-    Returns:
-        pl.DataFrame: Get all data from the postgresql database.
 
-    """
-    df = pl.read_database_uri(
-        query=query,
-        uri=db_uri,
-        engine="adbc",
-    )
-
+def get_data_from_postgresql_db(db_uri: str, query: str) -> pd.DataFrame:
+    """Read data from the postgresql database."""
+    df = pl.read_database_uri(query=query, uri=db_uri, engine="adbc")
     return df.to_pandas()
 
 
-def create_and_forward_data_drift_report_to_prometheus(reference_data: pd.DataFrame, current_data: pd.DataFrame) -> bool:
-    """
-    Create and forward the evidently data drift report to prometheus.
-
-    Args:
-        reference_data (pd.DataFrame): Reference dataset
-        current_data (pd.DataFrame): Current dataset
-
-    Returns:
-        bool: Drift detected or not
-
-    """
+def create_and_forward_data_drift_report_to_prometheus(
+    reference_data: pd.DataFrame, current_data: pd.DataFrame
+) -> bool:
+    """Create and forward the evidently data drift report to prometheus."""
     try:
+        # 1. Create and run report -> run() returns a Snapshot in Evidently >= 0.7
+        report = Report([DataDriftPreset(drift_share=DRIFT_SHARE_THRESHOLD)])
+        snapshot = report.run(current_data=current_data, reference_data=reference_data)
 
-        # Create the evidently data drift report
-        report = Report(metrics=[DataDriftPreset()])
-        snapshot = report.run(reference_data=reference_data, current_data=current_data)
+        # 2. Results as a plain dict (no temp file needed)
+        results = snapshot.dict()
 
-        # Get the results as a dictionary
-        # result = snapshot.dict()
+        # 3. Dataset-level drift: DriftedColumnsCount -> {"count": ..., "share": ...}
+        dataset_metric = None
+        column_scores: dict[str, float] = {}
 
-        # results_dict = next(metric for metric in result["metrics"] if metric["metric_name"].startswith("DriftedColumnsCount"))
+        for entry in results.get("metrics", []):
+            metric_type = entry.get("config", {}).get("type")
+            if metric_type == _DRIFTED_COUNT_TYPE:
+                dataset_metric = entry
+            elif metric_type == _VALUE_DRIFT_TYPE:
+                column = entry["config"]["column"]
+                column_scores[column] = float(entry["value"])
 
-        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tmp:
-            tmp_path = Path(tmp.name)
+        if dataset_metric is None:
+            raise KeyError("DriftedColumnsCount metric not found in report output.")
 
-        try:
-            snapshot.save_json(str(tmp_path))
-            # .read_text() liest die Datei direkt als String ein (kein open("r") nötig)
-            results_dict = json.loads(tmp_path.read_text(encoding="utf-8"))
-        finally:
-            if tmp_path.exists():
-                tmp_path.unlink()
+        value = dataset_metric["value"]
+        drifted_count = float(value["count"])
+        drifted_share = float(value["share"])
+        threshold = dataset_metric["config"].get("drift_share", DRIFT_SHARE_THRESHOLD)
+        drift_detected = drifted_share >= threshold
 
-        # Extract the drift metrics of the result dict
-        drift_metrics = results_dict['metrics'][0]["result"]
+        # 4. Set Prometheus metrics
+        DATA_DRIFT_DETECTED.set(int(drift_detected))
+        DRIFTED_COLUMNS_RATIO.set(drifted_share)
+        NUMBER_OF_DRIFTED_COLUMNS.set(drifted_count)
 
-        # Check a data drift was detected
-        drift_detected = 1 if drift_metrics["dataset_drift"] else 0
-
-        # If so, set the gauge obj to 1, else to 0
-        DATA_DRIFT_DETECTED.set(drift_detected)
-
-        # Set the gauge values for th number of drifted columns and drifted columns ratio
-        DRIFTED_COLUMNS_RATIO.set(drift_metrics["share_of_drifted_columns"])
-        NUMBER_OF_DRIFTED_COLUMNS.set(drift_metrics["number_of_drifted_metrics"])
-
-        # Set the drift scores for each feature column
-        column_drift_dict = drift_metrics.get("drift_by_columns", {})
-
-        for col_name, col_stats in column_drift_dict.items():
-            score = col_stats.get("drift_score", 0.0)
+        for col_name, score in column_scores.items():
             FEATURE_DRIFT_SCORE.labels(feature_name=col_name).set(score)
 
-        return True if drift_detected == 1 else False
+        print(f"DEBUG EVIDENTLY REPORT - DRIFT DETECTED: {drift_detected}")
+
+        return drift_detected
 
     except KeyError as exc:
         print(f"KeyError while parsing Evidently report dictionary: {exc}")
-        raise exc
+        raise
     except Exception as exc:
         print(f"Unexpected error during Evidently drift calculation: {exc}")
-        raise exc
+        raise

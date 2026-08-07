@@ -491,7 +491,6 @@ def create_report_and_trigger_workflow(counter_name: str, current_data_query: st
 
     # If the condition is fulfilled evidently report generation will be triggered
     if queue_counter_since_last_report >= THRESHOLD_QUEUE_COUNTER:
-        r.set(name=counter_name, value=0)
 
         # Read the labeled queue as the current dataset
         current_data = get_data_from_postgresql_db(db_uri=DB_URI, query=current_data_query)
@@ -508,5 +507,9 @@ def create_report_and_trigger_workflow(counter_name: str, current_data_query: st
             run_deployment(
                 name="fraud_detection_pipeline/fraud_detection_pipeline_hourly_serve",
                 parameters={"is_triggered_by_evidently": True},
-                timeout=0
+                timeout=0,
+                _sync=True,
             )
+
+        # Reset the counter
+        r.set(name=counter_name, value=0)
