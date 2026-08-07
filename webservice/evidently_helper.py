@@ -1,4 +1,7 @@
+import json
 import os
+import tempfile
+from pathlib import Path
 
 import pandas as pd
 import polars as pl
@@ -51,10 +54,23 @@ def create_and_forward_data_drift_report_to_prometheus(reference_data: pd.DataFr
 
         # Create the evidently data drift report
         report = Report(metrics=[DataDriftPreset()])
-        report.run(reference_data=reference_data, current_data=current_data)
+        snapshot = report.run(reference_data=reference_data, current_data=current_data)
 
         # Get the results as a dictionary
-        results_dict = report.as_dict()
+        # result = snapshot.dict()
+
+        # results_dict = next(metric for metric in result["metrics"] if metric["metric_name"].startswith("DriftedColumnsCount"))
+
+        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tmp:
+            tmp_path = Path(tmp.name)
+
+        try:
+            snapshot.save_json(str(tmp_path))
+            # .read_text() liest die Datei direkt als String ein (kein open("r") nötig)
+            results_dict = json.loads(tmp_path.read_text(encoding="utf-8"))
+        finally:
+            if tmp_path.exists():
+                tmp_path.unlink()
 
         # Extract the drift metrics of the result dict
         drift_metrics = results_dict['metrics'][0]["result"]
