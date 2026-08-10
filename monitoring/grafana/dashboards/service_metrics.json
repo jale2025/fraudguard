@@ -174,7 +174,8 @@
     },
     {
       "id": 3,
-      "title": "Prediction Requests",
+      "title": "Prediction Requests (since API start)",
+      "description": "Cumulative number of requests handled by the four prediction endpoints since the api-service process started. Resets when the container restarts. Requests rejected by FastAPI's request validation (HTTP 422) never reach the handler and are not counted.",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -225,7 +226,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(increase(fraudguard_prediction_requests_total[$__range]))",
+          "expr": "sum(fraudguard_prediction_requests_total) or vector(0)",
           "instant": true,
           "legendFormat": "Requests",
           "range": false,
@@ -235,7 +236,8 @@
     },
     {
       "id": 4,
-      "title": "Successful Requests",
+      "title": "Successful Requests (since API start)",
+      "description": "Cumulative number of prediction requests that completed with result=\"success\", since the api-service process started.",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -286,7 +288,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(increase(fraudguard_prediction_requests_total{result=\"success\"}[$__range]))",
+          "expr": "sum(fraudguard_prediction_requests_total{result=\"success\"}) or vector(0)",
           "instant": true,
           "legendFormat": "Success",
           "range": false,
@@ -296,7 +298,8 @@
     },
     {
       "id": 5,
-      "title": "Failed Requests",
+      "title": "Failed Requests (since API start)",
+      "description": "Cumulative number of prediction requests with result invalid_input, model_unavailable or internal_error, since the api-service process started. HTTP 422 request-validation errors are handled by FastAPI before the endpoint body and are NOT counted here.",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -350,7 +353,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(increase(fraudguard_prediction_requests_total{result!=\"success\"}[$__range]))",
+          "expr": "sum(fraudguard_prediction_requests_total{result!=\"success\"}) or vector(0)",
           "instant": true,
           "legendFormat": "Failed",
           "range": false,
@@ -360,6 +363,7 @@
     },
     {
       "title": "Single Inference Duration (p50, p90, p99 Latency)",
+      "description": "Model inference time for the two single-transaction endpoints (request_type=\"single\"). The histogram buckets end at 5s: anything slower only lands in +Inf and makes histogram_quantile return +Inf, which draws nothing. Read the avg series in that case.",
       "type": "timeseries",
       "gridPos": {
         "h": 8,
@@ -368,7 +372,6 @@
         "y": 4
       },
       "id": 6,
-      "timeFrom": "2m",
       "targets": [
         {
           "datasource": {
@@ -378,6 +381,7 @@
           "editorMode": "code",
           "expr": "histogram_quantile(0.50, sum by (le) (increase(fraudguard_model_inference_duration_seconds_bucket{request_type=\"single\"}[5m]))) or vector(NaN)",
           "legendFormat": "p50 (Median)",
+          "range": true,
           "refId": "A"
         },
         {
@@ -388,6 +392,7 @@
           "editorMode": "code",
           "expr": "histogram_quantile(0.90, sum by (le) (increase(fraudguard_model_inference_duration_seconds_bucket{request_type=\"single\"}[5m]))) or vector(NaN)",
           "legendFormat": "p90",
+          "range": true,
           "refId": "B"
         },
         {
@@ -398,22 +403,44 @@
           "editorMode": "code",
           "expr": "histogram_quantile(0.99, sum by (le) (increase(fraudguard_model_inference_duration_seconds_bucket{request_type=\"single\"}[5m]))) or vector(NaN)",
           "legendFormat": "p99",
+          "range": true,
           "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(fraudguard_model_inference_duration_seconds_sum{request_type=\"single\"}[5m])) / sum(increase(fraudguard_model_inference_duration_seconds_count{request_type=\"single\"}[5m]))",
+          "legendFormat": "avg",
+          "range": true,
+          "refId": "D"
         }
       ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        }
+      },
       "fieldConfig": {
         "defaults": {
           "custom": {
             "drawStyle": "line",
             "pointSize": 6,
+            "showPoints": "always",
             "spanNulls": true
           },
+          "min": 0,
           "unit": "s"
         }
       }
     },
     {
       "title": "File Batch Inference Duration (p50, p90, p99 Latency)",
+      "description": "Model inference time for uploaded Parquet batches. Known-label and unknown-label uploads both emit request_type=\"file\" and are merged into these series - they cannot be told apart here. A file rejected with HTTP 400 (missing or unexpected 'class' column) never reaches inference and is not measured at all; check \"Failed Requests\" instead. The histogram buckets end at 5s, so a slower batch only lands in +Inf and histogram_quantile returns +Inf, which draws nothing - read the avg series in that case.",
       "type": "timeseries",
       "gridPos": {
         "h": 8,
@@ -422,7 +449,6 @@
         "y": 4
       },
       "id": 7,
-      "timeFrom": "2m",
       "targets": [
         {
           "datasource": {
@@ -432,6 +458,7 @@
           "editorMode": "code",
           "expr": "histogram_quantile(0.50, sum by (le) (increase(fraudguard_model_inference_duration_seconds_bucket{request_type=\"file\"}[5m]))) or vector(NaN)",
           "legendFormat": "p50 (Median)",
+          "range": true,
           "refId": "A"
         },
         {
@@ -442,6 +469,7 @@
           "editorMode": "code",
           "expr": "histogram_quantile(0.90, sum by (le) (increase(fraudguard_model_inference_duration_seconds_bucket{request_type=\"file\"}[5m]))) or vector(NaN)",
           "legendFormat": "p90",
+          "range": true,
           "refId": "B"
         },
         {
@@ -452,22 +480,44 @@
           "editorMode": "code",
           "expr": "histogram_quantile(0.99, sum by (le) (increase(fraudguard_model_inference_duration_seconds_bucket{request_type=\"file\"}[5m]))) or vector(NaN)",
           "legendFormat": "p99",
+          "range": true,
           "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(fraudguard_model_inference_duration_seconds_sum{request_type=\"file\"}[5m])) / sum(increase(fraudguard_model_inference_duration_seconds_count{request_type=\"file\"}[5m]))",
+          "legendFormat": "avg",
+          "range": true,
+          "refId": "D"
         }
       ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        }
+      },
       "fieldConfig": {
         "defaults": {
           "custom": {
             "drawStyle": "line",
             "pointSize": 6,
+            "showPoints": "always",
             "spanNulls": true
           },
+          "min": 0,
           "unit": "s"
         }
       }
     },
         {
       "title": "Request Rate (per minute)",
+      "description": "Requests received in the trailing minute, split by endpoint and result. The y axis starts at 0 and is soft-capped at 5, so light demo traffic is readable while a heavier burst still expands the axis instead of being clipped.",
       "type": "timeseries",
       "gridPos": {
         "h": 8,
@@ -476,7 +526,6 @@
         "y": 12
       },
       "id": 8,
-      "timeFrom": "2m",
       "targets": [
         {
           "datasource": {
@@ -484,7 +533,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (endpoint, result) (rate(fraudguard_prediction_requests_total[2m])) * 60",
+          "expr": "sum by (endpoint, result) (increase(fraudguard_prediction_requests_total[1m]))",
           "legendFormat": "{{endpoint}} ({{result}})",
           "range": true,
           "refId": "A"
@@ -500,9 +549,14 @@
       "fieldConfig": {
         "defaults": {
           "custom": {
+            "axisSoftMax": 5,
             "drawStyle": "line",
-            "lineInterpolation": "smooth"
+            "lineInterpolation": "linear",
+            "pointSize": 6,
+            "showPoints": "always",
+            "spanNulls": false
           },
+          "min": 0,
           "unit": "reqpm"
         }
       }
