@@ -21,11 +21,32 @@ FILE_ROWS = Histogram(
     buckets=(1, 10, 100, 10000, 1000000),
 )
 
+# The buckets have to span both request types. A single transaction scores in
+# milliseconds, while a 500-row file batch regularly needs tens of seconds. An
+# observation above the largest bucket only reaches +Inf, and histogram_quantile
+# then returns +Inf, which Grafana cannot plot -- which is why the file latency
+# panel stayed empty while the single-transaction panel worked.
 MODEL_INFERENCE_DURATION = Histogram(
     "fraudguard_model_inference_duration_seconds",
     "Time spent performing model inference.",
     ["request_type"],
-    buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5),
+    buckets=(
+        0.005,
+        0.01,
+        0.025,
+        0.05,
+        0.1,
+        0.25,
+        0.5,
+        1,
+        2.5,
+        5,
+        10,
+        30,
+        60,
+        120,
+        300,
+    ),
 )
 
 MODEL_READY = Gauge(

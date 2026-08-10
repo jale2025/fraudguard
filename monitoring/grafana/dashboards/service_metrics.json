@@ -363,7 +363,7 @@
     },
     {
       "title": "Single Inference Duration (p50, p90, p99 Latency)",
-      "description": "Model inference time for the two single-transaction endpoints (request_type=\"single\"). The histogram buckets end at 5s: anything slower only lands in +Inf and makes histogram_quantile return +Inf, which draws nothing. Read the avg series in that case.",
+      "description": "Model inference time for the two single-transaction endpoints (request_type=\"single\"). Histogram buckets run up to 300s; anything slower only lands in +Inf and makes histogram_quantile return +Inf, which draws nothing - read the avg series in that case.",
       "type": "timeseries",
       "gridPos": {
         "h": 8,
@@ -379,7 +379,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum by (le) (increase(fraudguard_model_inference_duration_seconds_bucket{request_type=\"single\"}[5m]))) or vector(NaN)",
+          "expr": "histogram_quantile(0.50, sum by (le) (increase(fraudguard_model_inference_duration_seconds_bucket{request_type=\"single\"}[15m]))) or vector(NaN)",
           "legendFormat": "p50 (Median)",
           "range": true,
           "refId": "A"
@@ -390,7 +390,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.90, sum by (le) (increase(fraudguard_model_inference_duration_seconds_bucket{request_type=\"single\"}[5m]))) or vector(NaN)",
+          "expr": "histogram_quantile(0.90, sum by (le) (increase(fraudguard_model_inference_duration_seconds_bucket{request_type=\"single\"}[15m]))) or vector(NaN)",
           "legendFormat": "p90",
           "range": true,
           "refId": "B"
@@ -401,7 +401,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum by (le) (increase(fraudguard_model_inference_duration_seconds_bucket{request_type=\"single\"}[5m]))) or vector(NaN)",
+          "expr": "histogram_quantile(0.99, sum by (le) (increase(fraudguard_model_inference_duration_seconds_bucket{request_type=\"single\"}[15m]))) or vector(NaN)",
           "legendFormat": "p99",
           "range": true,
           "refId": "C"
@@ -412,7 +412,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(increase(fraudguard_model_inference_duration_seconds_sum{request_type=\"single\"}[5m])) / sum(increase(fraudguard_model_inference_duration_seconds_count{request_type=\"single\"}[5m]))",
+          "expr": "sum(increase(fraudguard_model_inference_duration_seconds_sum{request_type=\"single\"}[15m])) / sum(increase(fraudguard_model_inference_duration_seconds_count{request_type=\"single\"}[15m]))",
           "legendFormat": "avg",
           "range": true,
           "refId": "D"
@@ -440,7 +440,7 @@
     },
     {
       "title": "File Batch Inference Duration (p50, p90, p99 Latency)",
-      "description": "Model inference time for uploaded Parquet batches. Known-label and unknown-label uploads both emit request_type=\"file\" and are merged into these series - they cannot be told apart here. A file rejected with HTTP 400 (missing or unexpected 'class' column) never reaches inference and is not measured at all; check \"Failed Requests\" instead. The histogram buckets end at 5s, so a slower batch only lands in +Inf and histogram_quantile returns +Inf, which draws nothing - read the avg series in that case.",
+      "description": "Model inference time for uploaded Parquet batches. Histogram buckets run up to 300s, because a 500-row batch takes far longer than a single transaction - with the previous 5s ceiling every batch landed in +Inf, histogram_quantile returned +Inf and this panel stayed empty while the single-transaction panel worked. Known-label and unknown-label uploads both emit request_type=\"file\" and are merged into these series - they cannot be told apart here. A file rejected with HTTP 400 (missing or unexpected 'class' column) never reaches inference and is not measured at all; check \"Failed Requests\" instead.",
       "type": "timeseries",
       "gridPos": {
         "h": 8,
@@ -456,7 +456,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum by (le) (increase(fraudguard_model_inference_duration_seconds_bucket{request_type=\"file\"}[5m]))) or vector(NaN)",
+          "expr": "histogram_quantile(0.50, sum by (le) (increase(fraudguard_model_inference_duration_seconds_bucket{request_type=\"file\"}[15m]))) or vector(NaN)",
           "legendFormat": "p50 (Median)",
           "range": true,
           "refId": "A"
@@ -467,7 +467,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.90, sum by (le) (increase(fraudguard_model_inference_duration_seconds_bucket{request_type=\"file\"}[5m]))) or vector(NaN)",
+          "expr": "histogram_quantile(0.90, sum by (le) (increase(fraudguard_model_inference_duration_seconds_bucket{request_type=\"file\"}[15m]))) or vector(NaN)",
           "legendFormat": "p90",
           "range": true,
           "refId": "B"
@@ -478,7 +478,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum by (le) (increase(fraudguard_model_inference_duration_seconds_bucket{request_type=\"file\"}[5m]))) or vector(NaN)",
+          "expr": "histogram_quantile(0.99, sum by (le) (increase(fraudguard_model_inference_duration_seconds_bucket{request_type=\"file\"}[15m]))) or vector(NaN)",
           "legendFormat": "p99",
           "range": true,
           "refId": "C"
@@ -489,7 +489,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(increase(fraudguard_model_inference_duration_seconds_sum{request_type=\"file\"}[5m])) / sum(increase(fraudguard_model_inference_duration_seconds_count{request_type=\"file\"}[5m]))",
+          "expr": "sum(increase(fraudguard_model_inference_duration_seconds_sum{request_type=\"file\"}[15m])) / sum(increase(fraudguard_model_inference_duration_seconds_count{request_type=\"file\"}[15m]))",
           "legendFormat": "avg",
           "range": true,
           "refId": "D"
@@ -516,8 +516,8 @@
       }
     },
         {
-      "title": "Request Rate (per minute)",
-      "description": "Requests received in the trailing minute, split by endpoint and result. The y axis starts at 0 and is soft-capped at 5, so light demo traffic is readable while a heavier burst still expands the axis instead of being clipped.",
+      "title": "Request Volume (rolling 5 min)",
+      "description": "Requests received in the trailing 5 minutes, split by endpoint and result. A 5-minute window is used on purpose: demo traffic is sparse, and a shorter window turns every request into a narrow spike that disappears again within a minute. Each request now shows as a step roughly 5 minutes wide. The y axis starts at 0 and is soft-capped at 5, so light traffic stays readable while a heavier burst still expands the axis instead of being clipped.",
       "type": "timeseries",
       "gridPos": {
         "h": 8,
@@ -533,7 +533,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (endpoint, result) (increase(fraudguard_prediction_requests_total[1m]))",
+          "expr": "sum by (endpoint, result) (increase(fraudguard_prediction_requests_total[5m]))",
           "legendFormat": "{{endpoint}} ({{result}})",
           "range": true,
           "refId": "A"
@@ -549,15 +549,19 @@
       "fieldConfig": {
         "defaults": {
           "custom": {
+            "axisLabel": "requests in last 5 min",
             "axisSoftMax": 5,
             "drawStyle": "line",
+            "fillOpacity": 10,
             "lineInterpolation": "linear",
+            "lineWidth": 2,
             "pointSize": 6,
-            "showPoints": "always",
+            "showPoints": "auto",
             "spanNulls": false
           },
+          "decimals": 0,
           "min": 0,
-          "unit": "reqpm"
+          "unit": "short"
         }
       }
     }
