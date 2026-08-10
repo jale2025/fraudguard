@@ -217,8 +217,15 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+# dbt writes a local anonymous-usage id here when the CLI runs
+dbt/.user.yml
+
 # CSV data files
 *.csv
+
+# ... but dbt seeds are source code, not data. dbt build loads them and the
+# relationships tests in staging_schema.yml reference ref('target_labels').
+!dbt/seeds/*.csv
 
 # Jupyter notebook
 *.ipynb

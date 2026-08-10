@@ -1,0 +1,10 @@
+# Test-only dependencies. Kept out of the service requirements so the images stay lean.
+-r requirements.txt
+
+# Imported by webservice/app.py and prefect/tasks.py but absent from requirements.txt.
+prefect==3.8.0
+redis==8.0.1
+evidently==0.7.21
+
+pytest==9.1.1
+httpx==0.28.1
