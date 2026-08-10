@@ -33,7 +33,12 @@ from evidently_helper import (
     get_data_from_postgresql_db,
 )
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from predict import ModelNotAvailableError, ensure_model_available, predict
+from predict import (
+    ModelNotAvailableError,
+    ensure_model_available,
+    predict,
+    served_model_info,
+)
 from prefect.deployments import run_deployment
 from prometheus_client import make_asgi_app
 
@@ -53,6 +58,16 @@ app = FastAPI(title="Credit Card Fraud Detection API", version="0.1")
 # Expose Prometheus metrics on /metrics for Prometheus to scrape.
 metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
+
+@app.get("/model_info")
+def model_info() -> dict:
+    """Report which model version this worker is currently serving."""
+    try:
+        return served_model_info(REGISTERED_MODEL_NAME, DEFAULT_MODEL_ALIAS)
+    except ModelNotAvailableError as exc:
+        # The registry may be down while a model is still loaded and serving.
+        # Report what we have instead of failing the diagnostic call.
+        return {"registry_error": str(exc), "worker_pid": os.getpid()}
 
 
 @app.get("/")
@@ -573,3 +588,4 @@ def has_class_column(df: pd.DataFrame) -> bool:
 
     """
     return any(str(col).strip().lower() == "class" for col in df.columns)
+
