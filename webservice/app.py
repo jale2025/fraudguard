@@ -9,6 +9,7 @@ This module owns the public API surface:
 """
 
 import io
+import logging
 import os
 from typing import Annotated
 
@@ -38,6 +39,8 @@ from prefect.deployments import run_deployment
 from prometheus_client import make_asgi_app
 
 THRESHOLD_QUEUE_COUNTER = 10
+
+logger = logging.getLogger(__name__)
 
 # Load dotenv
 load_dotenv()
@@ -138,6 +141,10 @@ def predict_transaction_unknown_label(
 
         return response
 
+    except HTTPException:
+        # Do not turn a deliberate 4xx into a generic 500 further down.
+        raise
+
     except ModelNotAvailableError as exc:
         PREDICTION_REQUESTS.labels(
             endpoint=endpoint,
@@ -154,6 +161,8 @@ def predict_transaction_unknown_label(
             endpoint=endpoint,
             result="internal_error",
         ).inc()
+
+        logger.exception("Unexpected error on endpoint %s", endpoint)
 
         raise HTTPException(
             status_code=500,
@@ -208,6 +217,10 @@ def predict_transaction_known_label(
 
         return response
 
+    except HTTPException:
+        # Do not turn a deliberate 4xx into a generic 500 further down.
+        raise
+
     except ModelNotAvailableError as exc:
         PREDICTION_REQUESTS.labels(
             endpoint=endpoint,
@@ -224,6 +237,8 @@ def predict_transaction_known_label(
             endpoint=endpoint,
             result="internal_error",
         ).inc()
+
+        logger.exception("Unexpected error on endpoint %s", endpoint)
 
         raise HTTPException(
             status_code=500,
@@ -275,6 +290,18 @@ async def predict_transactions_unknown_label(
             detail="The uploaded file is not a valid Parquet file.",
         ) from exc
 
+    # Check if a class column exists (in any casing), if so throw an exception
+    if has_class_column(df):
+        PREDICTION_REQUESTS.labels(
+            endpoint=endpoint,
+            result="invalid_input",
+        ).inc()
+
+        raise HTTPException(
+            status_code=400,
+            detail="The uploaded Parquet file for unknown labels must NOT contain a 'class' or 'Class' column.",
+        )
+
     try:
         # Trim the df due to time limitation
         df = df.iloc[:500].copy()
@@ -324,6 +351,10 @@ async def predict_transactions_unknown_label(
             for record in df.to_dict(orient="records")
         ]
 
+    except HTTPException:
+        # Do not turn a deliberate 4xx into a generic 500 further down.
+        raise
+
     except ModelNotAvailableError as exc:
         PREDICTION_REQUESTS.labels(
             endpoint=endpoint,
@@ -340,6 +371,8 @@ async def predict_transactions_unknown_label(
             endpoint=endpoint,
             result="internal_error",
         ).inc()
+
+        logger.exception("Unexpected error on endpoint %s", endpoint)
 
         raise HTTPException(
             status_code=500,
@@ -389,6 +422,18 @@ async def predict_transactions_known_label(
             detail="The uploaded file is not a valid Parquet file.",
         ) from exc
 
+    # Check if a class column exists (in any casing), if not throw an exception
+    if not has_class_column(df):
+        PREDICTION_REQUESTS.labels(
+            endpoint=endpoint,
+            result="invalid_input",
+        ).inc()
+
+        raise HTTPException(
+            status_code=400,
+            detail="The uploaded Parquet file does not have a 'class' or 'Class' column.",
+        )
+
     try:
         # Trim the df due to time limitations
         df = df.iloc[:500].copy()
@@ -403,17 +448,6 @@ async def predict_transactions_known_label(
 
         # Rename the columns
         df = df.rename(columns=column_mapping)
-
-        if "class" not in df.columns:
-            PREDICTION_REQUESTS.labels(
-                endpoint=endpoint,
-                result="invalid_input",
-            ).inc()
-
-            raise HTTPException(
-                status_code=422,
-                detail="The Parquet file must contain a 'Class' column.",
-            )
 
         actual_labels = df["class"].astype(int).tolist()
 
@@ -475,6 +509,8 @@ async def predict_transactions_known_label(
             result="internal_error",
         ).inc()
 
+        logger.exception("Unexpected error on endpoint %s", endpoint)
+
         raise HTTPException(
             status_code=500,
             detail="An unexpected error occurred during prediction.",
@@ -530,3 +566,22 @@ def create_report_and_trigger_workflow(
 
         # Reset the counter
         r.set(name=counter_name, value=0)
+
+
+def has_class_column(df: pd.DataFrame) -> bool:
+    """
+    Check case-insensitively whether a ground truth class column is present.
+
+    The raw Kaggle dataset ships the label as 'Class', while the database
+    schema expects 'class'. Comparing the normalized name avoids missing the
+    column just because of its casing or surrounding whitespace.
+
+    Args:
+        df (pd.DataFrame): DataFrame read from the uploaded Parquet file.
+
+    Returns:
+        bool: True if a class column exists in any casing, otherwise False.
+
+    """
+    return any(str(col).strip().lower() == "class" for col in df.columns)
+
