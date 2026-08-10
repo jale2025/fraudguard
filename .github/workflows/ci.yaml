@@ -1,0 +1,156 @@
+name: CI
+
+# push is filtered to main while pull_request is not filtered at all. That is what
+# removes the duplicate runs we used to get: a feature branch now fires only the
+# pull_request event, and the merge commit on main fires only push -- which is the run
+# a future CD workflow hangs off via workflow_run.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: lint (ruff)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      # Pinned to the version in requirements.txt so a new ruff release cannot turn
+      # CI red on its own.
+      - name: Install ruff
+        run: pip install ruff==0.16.0
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Check formatting
+        run: ruff format --check .
+
+  unit:
+    name: unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+            prefect/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run unit tests
+        run: pytest tests/unit
+
+  integration:
+    name: integration (api + postgres + dbt)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    # Mirrors the db_service container from docker-compose.yaml. The host port is 5432
+    # here because the service container is addressed directly, while compose maps it
+    # to 5433 on a developer machine -- which is why the tests read TEST_DB_URI instead
+    # of hardcoding a port.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # dbt/profiles.yml reads POSTGRES_*, the python code reads DB_*/TEST_DB_URI.
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: fraud_detection
+      PGPASSWORD: postgres
+      TEST_DB_URI: postgresql://postgres:postgres@localhost:5432/fraud_detection
+      DBT_SEND_ANONYMOUS_USAGE_STATS: "false"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+            prefect/requirements.txt
+
+      # init-db.sql uses the psql meta-command \c, so it has to run through psql
+      # rather than a python driver. psql ships with the ubuntu-latest runner.
+      - name: Bootstrap the database
+        run: psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -f init-db/init-db.sql
+
+      # prefect/requirements.txt supplies the dbt CLI at the same pin the worker
+      # image ships.
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt -r prefect/requirements.txt
+
+      - name: Run integration tests
+        run: pytest tests/integration
+
+      # Runs after the tests on purpose: they leave rows in raw.transactions, so the
+      # staging data tests are evaluated against real data instead of empty tables.
+      - name: dbt build
+        run: dbt build --project-dir dbt --profiles-dir dbt --target dev
+
+  # Single required status check. Because every job feeds into this one, adding a job
+  # later tightens the gate without touching branch protection, and a future CD
+  # workflow can key off this workflow's conclusion.
+  ci-success:
+    name: ci-success
+    if: ${{ always() }}
+    needs: [lint, unit, integration]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check that every job succeeded
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: |
+          echo "::error::At least one CI job failed or was cancelled."
+          exit 1
+
+      - name: Report success
+        run: echo "All CI jobs succeeded."

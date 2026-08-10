@@ -14,7 +14,7 @@ profile: 'dbt_fraud_profile'
 # found in the "models/" directory. You probably won't need to change these!
 model-paths: ["models"]
 # analysis-paths: ["analyses"]
-# test-paths: ["tests"]
+test-paths: ["tests"]
 seed-paths: ["seeds"]
 # macro-paths: ["macros"]
 # snapshot-paths: ["snapshots"]

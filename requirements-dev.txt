@@ -1,0 +1,16 @@
+# Test-only dependencies. Kept out of the service requirements so the images stay lean.
+-r requirements.txt
+
+# Imported by webservice/app.py and prefect/tasks.py but absent from requirements.txt.
+prefect==3.8.0
+redis==8.0.1
+evidently==0.7.21
+
+# Needed to *import* webservice/app.py, not just to serve requests: the UploadFile
+# parameters on the file endpoints make FastAPI run ensure_multipart_is_installed()
+# while it registers the routes. It cannot be dropped in favour of the "multipart"
+# package that evidently pulls in through litestar -- FastAPI requires this one.
+python-multipart==0.0.32
+
+pytest==9.1.1
+httpx==0.28.1
