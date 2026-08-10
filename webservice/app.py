@@ -9,7 +9,6 @@ This module owns the public API surface:
 """
 
 import io
-import logging
 import os
 from typing import Annotated
 
@@ -39,8 +38,6 @@ from prefect.deployments import run_deployment
 from prometheus_client import make_asgi_app
 
 THRESHOLD_QUEUE_COUNTER = 10
-
-logger = logging.getLogger(__name__)
 
 # Load dotenv
 load_dotenv()
@@ -162,8 +159,6 @@ def predict_transaction_unknown_label(
             result="internal_error",
         ).inc()
 
-        logger.exception("Unexpected error on endpoint %s", endpoint)
-
         raise HTTPException(
             status_code=500,
             detail="An unexpected error occurred during prediction.",
@@ -237,8 +232,6 @@ def predict_transaction_known_label(
             endpoint=endpoint,
             result="internal_error",
         ).inc()
-
-        logger.exception("Unexpected error on endpoint %s", endpoint)
 
         raise HTTPException(
             status_code=500,
@@ -371,8 +364,6 @@ async def predict_transactions_unknown_label(
             endpoint=endpoint,
             result="internal_error",
         ).inc()
-
-        logger.exception("Unexpected error on endpoint %s", endpoint)
 
         raise HTTPException(
             status_code=500,
@@ -508,8 +499,6 @@ async def predict_transactions_known_label(
             endpoint=endpoint,
             result="internal_error",
         ).inc()
-
-        logger.exception("Unexpected error on endpoint %s", endpoint)
 
         raise HTTPException(
             status_code=500,
