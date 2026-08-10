@@ -584,4 +584,3 @@ def has_class_column(df: pd.DataFrame) -> bool:
 
     """
     return any(str(col).strip().lower() == "class" for col in df.columns)
-
