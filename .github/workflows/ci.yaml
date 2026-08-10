@@ -6,7 +6,6 @@ name: CI
 # a future CD workflow hangs off via workflow_run.
 on:
   push:
-    branches: [main]
   pull_request:
   workflow_dispatch:
 
