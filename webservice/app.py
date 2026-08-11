@@ -546,7 +546,7 @@ async def predict_transactions_known_label(
         ) from exc
 
 
-@app.post("/drift_report", status_code=202)
+@app.post("/drift_report/trigger", status_code=202)
 def trigger_drift_report(
     background_tasks: BackgroundTasks,
     queue: QueueName = "labeled_queue",
