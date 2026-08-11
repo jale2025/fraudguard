@@ -59,17 +59,6 @@ app = FastAPI(title="Credit Card Fraud Detection API", version="0.1")
 metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
 
-@app.get("/model_info")
-def model_info() -> dict:
-    """Report which model version this worker is currently serving."""
-    try:
-        return served_model_info(REGISTERED_MODEL_NAME, DEFAULT_MODEL_ALIAS)
-    except ModelNotAvailableError as exc:
-        # The registry may be down while a model is still loaded and serving.
-        # Report what we have instead of failing the diagnostic call.
-        return {"registry_error": str(exc), "worker_pid": os.getpid()}
-
-
 @app.get("/")
 def index():
     """Verify that the API is alive."""
@@ -101,6 +90,17 @@ def readiness() -> dict[str, str]:
 
     MODEL_READY.set(1)
     return {"status": "ready"}
+
+
+@app.get("/model_info")
+def model_info() -> dict:
+    """Report which model version this worker is currently serving."""
+    try:
+        return served_model_info(REGISTERED_MODEL_NAME, DEFAULT_MODEL_ALIAS)
+    except ModelNotAvailableError as exc:
+        # The registry may be down while a model is still loaded and serving.
+        # Report what we have instead of failing the diagnostic call.
+        return {"registry_error": str(exc), "worker_pid": os.getpid()}
 
 
 @app.post(
