@@ -128,7 +128,9 @@ def create_report_and_trigger_workflow(
         # decode_responses=True, so a present key is a str. A missing key means no
         # rows were ever counted -- nothing seeds these keys, only INCR creates them.
         raw_counter_value = redis_clt.get(name=counter_name)
-        queue_counter_since_last_report = int(raw_counter_value) if raw_counter_value not in (None, "") else 0
+        queue_counter_since_last_report = (
+            int(raw_counter_value) if raw_counter_value not in (None, "") else 0
+        )
 
         if queue_counter_since_last_report < THRESHOLD_QUEUE_COUNTER:
             return
