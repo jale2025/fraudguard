@@ -9,8 +9,7 @@ import io
 from typing import Any
 
 from fastapi import BackgroundTasks
-
-from webservice.predict import ModelNotAvailableError
+from predict import ModelNotAvailableError
 
 
 def test_predict_single_unknown_label_returns_prediction(
@@ -154,7 +153,7 @@ def test_manual_trigger_schedules_once(
     # The endpoint claims the slot and run_drift_report releases it in its finally.
     # The stub above replaced that function, so the slot is still held here -- which
     # is exactly the state a second request must be refused in.
-    from webservice.drift_report import release_report_slot
+    from drift_report import release_report_slot
 
     try:
         assert client.post("/drift_report/trigger").status_code == 409
