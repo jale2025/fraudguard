@@ -153,10 +153,10 @@ def served_model_info(model_name: str, alias: str = "production") -> dict:
     loaded_version, model = cached
 
     return {
-        "loaded_version": loaded_version,
+        "cached_version": loaded_version,
         # Read from the model object itself, not from our own bookkeeping.
         "loaded_run_id": model.metadata.run_id,
         "loaded_model_uuid": model.metadata.model_uuid,
-        "registry_version": _resolve_version(model_name, alias),
+        "mlflow_registry_version": _resolve_version(model_name, alias),
         "worker_pid": os.getpid(),
     }
