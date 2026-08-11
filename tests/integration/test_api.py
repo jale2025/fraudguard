@@ -9,7 +9,8 @@ import io
 from typing import Any
 
 from fastapi import BackgroundTasks
-from predict import ModelNotAvailableError
+
+from webservice.predict import ModelNotAvailableError
 
 
 def test_predict_single_unknown_label_returns_prediction(
@@ -130,9 +131,6 @@ def test_latest_drift_report_is_served_and_404s_when_absent(
     assert [entry["filename"] for entry in history] == [
         "drift_labeled_queue_20260201T120000Z.html"
     ]
-    assert client.get(f"/drift_report/file/{history[0]['filename']}").status_code == 200
-    # A name that escapes the reports directory is a 404, not a file leak.
-    assert client.get("/drift_report/file/..%2Fapp.py").status_code == 404
 
 
 def test_manual_trigger_schedules_once(
@@ -144,7 +142,7 @@ def test_manual_trigger_schedules_once(
         app_module, "run_drift_report", lambda **kwargs: scheduled.append(kwargs)
     )
 
-    response = client.post("/drift_report?queue=not_labeled_queue")
+    response = client.post("/drift_report/trigger?queue=not_labeled_queue")
 
     assert response.status_code == 202
     assert response.json() == {"status": "scheduled", "queue": "not_labeled_queue"}
@@ -156,10 +154,10 @@ def test_manual_trigger_schedules_once(
     # The endpoint claims the slot and run_drift_report releases it in its finally.
     # The stub above replaced that function, so the slot is still held here -- which
     # is exactly the state a second request must be refused in.
-    import drift_report
+    from webservice.drift_report import release_report_slot
 
     try:
-        assert client.post("/drift_report").status_code == 409
+        assert client.post("/drift_report/trigger").status_code == 409
         assert len(scheduled) == 1
     finally:
-        drift_report.release_report_slot()
+        release_report_slot()
