@@ -2,15 +2,41 @@ import os
 from time import time
 
 import pandas as pd
-import redis
 from data_model import (
     TransactionClassificationKnownLabel,
     TransactionClassificationUnknownLabel,
 )
+from redis_helper import redis_client
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError, ProgrammingError, SQLAlchemyError
 
 DB_URI = os.getenv("DB_URI")
+
+# Redis counter names per target table. "<queue>" drives the drift report and is
+# reset on every run; "<queue>_length" is a cumulative total.
+QUEUE_COUNTERS = {
+    "predictions": "not_labeled_queue",
+    "labeled_predictions_queue": "labeled_queue",
+}
+
+
+def _increment_queue_counters(table_name: str, rows: int) -> None:
+    """
+    Record how many rows arrived on a queue.
+
+    Args:
+        table_name (str): Target table the rows were written to.
+        rows (int): Number of rows in this batch.
+
+    """
+    counter_name = QUEUE_COUNTERS.get(table_name)
+
+    if counter_name is None:
+        return
+
+    client = redis_client()
+    client.incr(name=counter_name, amount=rows)
+    client.incr(name=f"{counter_name}_length", amount=rows)
 
 
 def forward_to_database(
@@ -62,19 +88,10 @@ def forward_to_database(
                 f"{table_name}", engine, if_exists="append", index=False, schema="raw"
             )
 
-            # Connect to the redis container
-            r = redis.Redis(
-                host=os.getenv("REDIS_HOST"), port=6379, db=0, decode_responses=True
-            )
-
-            # Increase the global counter
-            if table_name == "predictions":
-                r.incr(name="not_labeled_queue", amount=total_rows)
-                r.incr(name="not_labeled_queue_length", amount=total_rows)
-
-            elif table_name == "labeled_predictions_queue":
-                r.incr(name="labeled_queue", amount=total_rows)
-                r.incr(name="labeled_queue_length", amount=total_rows)
+            # Count the rows of *this* batch. Incrementing by total_rows here would
+            # multiply the count by the number of batches, so a 250k-row upload
+            # reported 750k rows and triggered the drift report far too eagerly.
+            _increment_queue_counters(table_name, len(batch_df))
 
         except IntegrityError as e:
             # Triggered by duplicate keys or NOT NULL constraint violations

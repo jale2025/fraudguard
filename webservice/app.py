@@ -5,15 +5,15 @@ This module owns the public API surface:
 - GET / for a simple info message
 - GET /health for a liveness check
 - POST /predict for model inference
+- /drift_report for the Evidently HTML reports
 - /metrics for prometheus monitoring
 """
 
 import io
 import os
-from typing import Annotated
+from typing import Annotated, Literal
 
 import pandas as pd
-import redis
 from api_http_metrics import PREDICTION_REQUESTS
 from api_model_metrics import (
     MODEL_INFERENCE_DURATION,
@@ -28,21 +28,26 @@ from data_model import (
     TransactionUnknownLabel,
 )
 from dotenv import load_dotenv
-from evidently_helper import (
-    create_and_forward_data_drift_report_to_prometheus,
-    get_data_from_postgresql_db,
+from drift_report import (
+    QUEUE_QUERIES,
+    claim_report_slot,
+    create_report_and_trigger_workflow,
+    latest_report_file,
+    list_reports,
+    report_file,
+    run_drift_report,
 )
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from predict import (
     ModelNotAvailableError,
     ensure_model_available,
     predict,
     served_model_info,
 )
-from prefect.deployments import run_deployment
 from prometheus_client import make_asgi_app
 
-THRESHOLD_QUEUE_COUNTER = 251
+QueueName = Literal["labeled_queue", "not_labeled_queue"]
 
 # Load dotenv
 load_dotenv()
@@ -51,6 +56,8 @@ load_dotenv()
 MLFLOW_TRACKING_URI = os.environ["MLFLOW_TRACKING_URI"]
 REGISTERED_MODEL_NAME = os.environ["MODEL_NAME"]
 DEFAULT_MODEL_ALIAS = os.environ["DEFAULT_MODEL_ALIAS"]
+# Not used here anymore -- api_to_database and drift_report read it themselves -- but
+# both read it lazily, so this keeps a missing DB_URI a startup failure.
 DB_URI = os.environ["DB_URI"]
 
 app = FastAPI(title="Credit Card Fraud Detection API", version="0.1")
@@ -110,6 +117,7 @@ def model_info() -> dict:
 )
 def predict_transaction_unknown_label(
     data: TransactionUnknownLabel,
+    background_tasks: BackgroundTasks,
 ) -> TransactionClassificationUnknownLabel:
     """Run model inference on a transaction and return the classification."""
     # First serve the model prediction. Monitoring should observe this request,
@@ -141,10 +149,13 @@ def predict_transaction_unknown_label(
         # Call the function to forward the incoming transactions into database
         forward_to_database(table_name="predictions", data=response)
 
-        # Call the function for creating an evidently report and trigger the prefect workflow
+        # Only the redis counter check happens here; the report itself runs after
+        # the response was sent. The task is attached to the returned response, so a
+        # handler that raises below never fires a report.
         create_report_and_trigger_workflow(
             counter_name="not_labeled_queue",
-            current_data_query="SELECT * FROM raw.predictions ORDER BY elapsed_sec, pc_1",
+            current_data_query=QUEUE_QUERIES["not_labeled_queue"],
+            background_tasks=background_tasks,
         )
 
         # Count the request only once the whole handler succeeded. Counting earlier
@@ -189,6 +200,7 @@ def predict_transaction_unknown_label(
 )
 def predict_transaction_known_label(
     data: TransactionKnownLabel,
+    background_tasks: BackgroundTasks,
 ) -> TransactionClassificationKnownLabel:
     """Run model inference on a transaction and return the classification."""
     endpoint = "predict_single_known_label"
@@ -218,10 +230,12 @@ def predict_transaction_known_label(
         # Call the function to forward the incoming transactions into database
         forward_to_database(table_name="labeled_predictions_queue", data=response)
 
-        # Call the function for creating an evidently report and trigger the prefect workflow
+        # Only the redis counter check happens here; the report itself runs after
+        # the response was sent.
         create_report_and_trigger_workflow(
             counter_name="labeled_queue",
-            current_data_query="SELECT * FROM raw.labeled_predictions_queue ORDER BY elapsed_sec, pc_1",
+            current_data_query=QUEUE_QUERIES["labeled_queue"],
+            background_tasks=background_tasks,
         )
 
         # Count the request only once the whole handler succeeded. Counting earlier
@@ -272,6 +286,7 @@ async def predict_transactions_unknown_label(
             description="Parquet file containing the transactions with unknown labels."
         ),
     ],
+    background_tasks: BackgroundTasks,
 ) -> list[TransactionClassificationUnknownLabel]:
     """Run model inference on a uploaded Parquet file without ground truth."""
     endpoint = "predict_file_unknown_label"
@@ -346,10 +361,12 @@ async def predict_transactions_unknown_label(
         # Call the function to forward the incoming transactions into database
         forward_to_database(table_name="predictions", data=df)
 
-        # Call the function for creating an evidently report and trigger the prefect workflow
+        # Only the redis counter check happens here. This endpoint is async, so
+        # running the report inline would block the event loop of the whole worker.
         create_report_and_trigger_workflow(
             counter_name="not_labeled_queue",
-            current_data_query="SELECT * FROM raw.predictions ORDER BY elapsed_sec, pc_1",
+            current_data_query=QUEUE_QUERIES["not_labeled_queue"],
+            background_tasks=background_tasks,
         )
 
         PREDICTION_REQUESTS.labels(
@@ -399,6 +416,7 @@ async def predict_transactions_known_label(
         UploadFile,
         File(description="Parquet file containing the transactions with known labels."),
     ],
+    background_tasks: BackgroundTasks,
 ) -> list[TransactionClassificationKnownLabel]:
     """Run model inference on an uploaded Parquet file with known labels."""
     endpoint = "predict_file_known_label"
@@ -483,10 +501,12 @@ async def predict_transactions_known_label(
         # Call the function to forward the incoming transactions into database
         forward_to_database(table_name="labeled_predictions_queue", data=df)
 
-        # Call the function for creating an evidently report and trigger the prefect workflow
+        # Only the redis counter check happens here. This endpoint is async, so
+        # running the report inline would block the event loop of the whole worker.
         create_report_and_trigger_workflow(
             counter_name="labeled_queue",
-            current_data_query="SELECT * FROM raw.labeled_predictions_queue ORDER BY elapsed_sec, pc_1",
+            current_data_query=QUEUE_QUERIES["labeled_queue"],
+            background_tasks=background_tasks,
         )
 
         PREDICTION_REQUESTS.labels(
@@ -526,55 +546,73 @@ async def predict_transactions_known_label(
         ) from exc
 
 
-def create_report_and_trigger_workflow(
-    counter_name: str, current_data_query: str
-) -> None:
+@app.post("/drift_report", status_code=202)
+def trigger_drift_report(
+    background_tasks: BackgroundTasks,
+    queue: QueueName = "labeled_queue",
+    trigger_retraining: bool = False,
+) -> dict[str, str]:
     """
-    Create the evidently report and trigger the prefect workflow if the precondition is fulfilled.
+    Run a drift report on demand, ignoring the row counter.
 
     Args:
-        counter_name (str): Counter name
-        current_data_query (str): SQL query for the current dataset.
+        background_tasks (BackgroundTasks): Collector for the work that runs once
+            the response has been sent.
+        queue (QueueName): Prediction queue to compare against the training data.
+        trigger_retraining (bool): Whether detected drift may start the retraining
+            deployment. Defaults to False so a debug run cannot retrain by accident.
+
+    Returns:
+        dict[str, str]: The scheduled queue.
 
     """
-    # Connect to the redis container
-    r = redis.Redis(
-        host=os.environ["REDIS_HOST"], port=6379, db=0, decode_responses=True
+    if not claim_report_slot():
+        raise HTTPException(
+            status_code=409,
+            detail="A drift report is already running.",
+        )
+
+    background_tasks.add_task(
+        run_drift_report,
+        counter_name=queue,
+        current_data_query=QUEUE_QUERIES[queue],
+        trigger_retraining=trigger_retraining,
     )
 
-    # Get the global counter value
-    queue_counter_since_last_report = int(r.get(name=counter_name))
+    return {"status": "scheduled", "queue": queue}
 
-    # If the condition is fulfilled evidently report generation will be triggered
-    if queue_counter_since_last_report >= THRESHOLD_QUEUE_COUNTER:
-        # Read the labeled queue as the current dataset
-        current_data = get_data_from_postgresql_db(
-            db_uri=DB_URI, query=current_data_query
-        )
-        current_data.drop(columns=["ingestion_time", "prediction"], inplace=True)
 
-        # Read the fct training data as the reference dataset (prod)
-        reference_data = get_data_from_postgresql_db(
-            db_uri=DB_URI,
-            query="SELECT * FROM dbt_prod_data_science.fct_training_data ORDER BY elapsed_sec, pc_1",
+@app.get("/drift_report/latest", response_class=FileResponse)
+def latest_drift_report(queue: QueueName = "labeled_queue") -> FileResponse:
+    """Serve the most recent Evidently HTML drift report for a queue."""
+    path = latest_report_file(queue)
+
+    if path is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No drift report has been generated yet for '{queue}'.",
         )
 
-        # Call the evidently data drift report execution
-        data_drift_detected = create_and_forward_data_drift_report_to_prometheus(
-            reference_data=reference_data, current_data=current_data
-        )
+    return FileResponse(path, media_type="text/html")
 
-        # If data drift was detected, trigger the fast api endpoint which starts the prefect workflow to retrain the model
-        if data_drift_detected:
-            run_deployment(
-                name="fraud_detection_pipeline/fraud_detection_pipeline_hourly_serve",
-                parameters={"is_triggered_by_evidently": True},
-                timeout=0,
-                _sync=True,
-            )
 
-        # Reset the counter
-        r.set(name=counter_name, value=0)
+@app.get("/drift_report/history")
+def drift_report_history(queue: QueueName | None = None) -> list[dict]:
+    """List the retained Evidently drift reports, newest first."""
+    return list_reports(queue)
+
+
+@app.get("/drift_report/file/{filename}", response_class=FileResponse)
+def drift_report_by_name(filename: str) -> FileResponse:
+    """Serve one retained report by name, as listed by /drift_report/history."""
+    # report_file resolves inside the reports directory and returns None for a
+    # traversal attempt, so an unexpected name is a 404 rather than a file leak.
+    path = report_file(filename)
+
+    if path is None:
+        raise HTTPException(status_code=404, detail="Unknown drift report.")
+
+    return FileResponse(path, media_type="text/html")
 
 
 def has_class_column(df: pd.DataFrame) -> bool:
