@@ -8,6 +8,7 @@ serialisation -- and only replace the model, the database write and the drift re
 import io
 from typing import Any
 
+from fastapi import BackgroundTasks
 from predict import ModelNotAvailableError
 
 
@@ -24,6 +25,10 @@ def test_predict_single_unknown_label_returns_prediction(
 
     assert stubs.forward_calls[0]["table_name"] == "predictions"
     assert stubs.report_calls[0]["counter_name"] == "not_labeled_queue"
+    # The endpoint must hand the report a task collector rather than running it
+    # inline: an inline report would put two table reads and the Evidently run into
+    # the request path, and could fail an otherwise successful prediction.
+    assert isinstance(stubs.report_calls[0]["background_tasks"], BackgroundTasks)
 
 
 def test_predict_single_known_label_returns_class(
@@ -104,3 +109,57 @@ def test_predict_file_maps_raw_column_names(
     )
     assert rejected.status_code == 400
     assert rejected.json()["detail"] == "Only .parquet files are supported."
+
+
+def test_latest_drift_report_is_served_and_404s_when_absent(
+    client: Any, reports_dir: Any
+) -> None:
+    """Verify the stored Evidently HTML report is served, and missing means 404."""
+    assert client.get("/drift_report/latest?queue=labeled_queue").status_code == 404
+
+    (reports_dir / "latest_labeled_queue.html").write_text("<html>report</html>")
+    (reports_dir / "drift_labeled_queue_20260201T120000Z.html").write_text("<html/>")
+
+    response = client.get("/drift_report/latest?queue=labeled_queue")
+
+    assert response.status_code == 200
+    assert response.text == "<html>report</html>"
+    assert response.headers["content-type"].startswith("text/html")
+
+    history = client.get("/drift_report/history?queue=labeled_queue").json()
+    assert [entry["filename"] for entry in history] == [
+        "drift_labeled_queue_20260201T120000Z.html"
+    ]
+    assert client.get(f"/drift_report/file/{history[0]['filename']}").status_code == 200
+    # A name that escapes the reports directory is a 404, not a file leak.
+    assert client.get("/drift_report/file/..%2Fapp.py").status_code == 404
+
+
+def test_manual_trigger_schedules_once(
+    client: Any, app_module: Any, monkeypatch: Any, reports_dir: Any
+) -> None:
+    """Verify the on-demand endpoint schedules a report and refuses to overlap."""
+    scheduled: list[dict[str, Any]] = []
+    monkeypatch.setattr(
+        app_module, "run_drift_report", lambda **kwargs: scheduled.append(kwargs)
+    )
+
+    response = client.post("/drift_report?queue=not_labeled_queue")
+
+    assert response.status_code == 202
+    assert response.json() == {"status": "scheduled", "queue": "not_labeled_queue"}
+    # TestClient runs background tasks inside the request, so the task already ran.
+    assert scheduled[0]["counter_name"] == "not_labeled_queue"
+    # A debug run must not be able to start a retraining deployment.
+    assert scheduled[0]["trigger_retraining"] is False
+
+    # The endpoint claims the slot and run_drift_report releases it in its finally.
+    # The stub above replaced that function, so the slot is still held here -- which
+    # is exactly the state a second request must be refused in.
+    import drift_report
+
+    try:
+        assert client.post("/drift_report").status_code == 409
+        assert len(scheduled) == 1
+    finally:
+        drift_report.release_report_slot()
