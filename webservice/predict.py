@@ -1,47 +1,64 @@
 """Helpers for loading the registered MLflow model and serving predictions."""
 
 import os
-from functools import lru_cache
+import threading
 
 import mlflow
 import pandas as pd
 from data_model import TransactionKnownLabel, TransactionUnknownLabel
 from mlflow.exceptions import MlflowException
+from mlflow.pyfunc import PyFuncModel
+from mlflow.tracking import MlflowClient
 
 # MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
+
+_model_lock = threading.Lock()
+_model_cache: dict[tuple[str, str], tuple[str, PyFuncModel]] = {}
+
+
+def _resolve_version(model_name: str, alias: str) -> str:
+    """Resolve the alias to a concrete model version number."""
+    try:
+        return MlflowClient().get_model_version_by_alias(model_name, alias).version
+    except MlflowException as exc:
+        raise ModelNotAvailableError(
+            f"Model '{model_name}' with alias '{alias}' is unavailable."
+        ) from exc
 
 
 class ModelNotAvailableError(RuntimeError):
     """Raised when the registered MLflow model cannot be loaded."""
 
 
-# Cache the loaded model so repeated monitoring traffic does not reload the same
-# MLflow artifact for every request.
-@lru_cache(maxsize=1)
-def load_model(model_name, alias="production"):
-    """
+def load_model(model_name: str, alias: str = "production"):
+    """Return the model behind the alias, reloading it only when the version changed."""
+    version = _resolve_version(model_name, alias)
+    key = (model_name, alias)
 
-    Load a registered MLflow model from the model registry.
+    cached = _model_cache.get(key)
+    if cached is not None and cached[0] == version:
+        return cached[1]
 
-    Args:
-        model_name: Registered MLflow model name.
-        alias: Model alias to resolve in MLflow. Defaults to "production".
+    with _model_lock:
+        # Re-check inside the lock: a concurrent request may have loaded it already.
+        cached = _model_cache.get(key)
+        if cached is not None and cached[0] == version:
+            return cached[1]
 
-    Returns:
-        mlflow.pyfunc.PyFuncModel: Loaded MLflow model.
+        try:
+            # Load by explicit version, not by alias, so the alias cannot move
+            # between resolution and load.
+            model = mlflow.pyfunc.load_model(f"models:/{model_name}/{version}")
+            print(
+                f"Loaded model '{model_name}' v{version} (run_id={model.metadata.run_id})"
+            )
+        except MlflowException as exc:
+            raise ModelNotAvailableError(
+                f"Model '{model_name}' v{version} could not be loaded."
+            ) from exc
 
-    """
-    model_uri = f"models:/{model_name}@{alias}"
-
-    # mlflow.pyfunc.load_model hides the concrete library flavor behind a common
-    # prediction interface, so the API can stay the same even if the training
-    # script later swaps the underlying estimator.
-    try:
-        return mlflow.pyfunc.load_model(model_uri)
-    except MlflowException as exc:
-        raise ModelNotAvailableError(
-            f"Model '{model_name}' with alias '{alias}' is unavailable."
-        ) from exc
+        _model_cache[key] = (version, model)
+        return model
 
 
 def ensure_model_available(
@@ -125,3 +142,23 @@ def predict(
         return results.tolist()
 
     return int(results[0])
+
+
+def served_model_info(model_name: str, alias: str = "production") -> dict:
+    """Report what is actually loaded versus what the registry currently points at."""
+    key = (model_name, alias)
+    cached = _model_cache.get(key)
+
+    if cached is None:
+        return {"loaded": None, "registry": _resolve_version(model_name, alias)}
+
+    loaded_version, model = cached
+
+    return {
+        "cached_version": loaded_version,
+        # Read from the model object itself, not from our own bookkeeping.
+        "loaded_run_id": model.metadata.run_id,
+        "loaded_model_uuid": model.metadata.model_uuid,
+        "mlflow_registry_version": _resolve_version(model_name, alias),
+        "worker_pid": os.getpid(),
+    }
