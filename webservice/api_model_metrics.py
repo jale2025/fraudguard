@@ -21,11 +21,32 @@ FILE_ROWS = Histogram(
     buckets=(1, 10, 100, 10000, 1000000),
 )
 
+# The buckets have to span both request types. A single transaction scores in
+# milliseconds, while a 500-row file batch regularly needs tens of seconds. An
+# observation above the largest bucket only reaches +Inf, and histogram_quantile
+# then returns +Inf, which Grafana cannot plot -- which is why the file latency
+# panel stayed empty while the single-transaction panel worked.
 MODEL_INFERENCE_DURATION = Histogram(
     "fraudguard_model_inference_duration_seconds",
     "Time spent performing model inference.",
     ["request_type"],
-    buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5),
+    buckets=(
+        0.005,
+        0.01,
+        0.025,
+        0.05,
+        0.1,
+        0.25,
+        0.5,
+        1,
+        2.5,
+        5,
+        10,
+        30,
+        60,
+        120,
+        300,
+    ),
 )
 
 MODEL_READY = Gauge(
@@ -44,6 +65,44 @@ OUTCOME_NAMES = {
     (1, 0): "false_negative",
     (1, 1): "true_positive",
 }
+
+REQUEST_TYPES = ("single", "file")
+GROUND_TRUTHS = ("known", "unknown")
+
+
+def initialise_children() -> None:
+    """
+    Export every reachable model metric child at zero from process start.
+
+    Same reasoning as in ``api_http_metrics``: a labelled child is not registered
+    until ``.labels()`` runs, so it is first scraped already holding its full value
+    and ``increase()`` cannot see that first observation. Without this, uploading
+    two files left "Processed Files" at 1 and a single scored batch left
+    "Transactions Scored" at 0.
+    """
+    for request_type in REQUEST_TYPES:
+        for ground_truth in GROUND_TRUTHS:
+            for prediction_name in PREDICTION_NAMES.values():
+                PREDICTIONS.labels(
+                    request_type=request_type,
+                    ground_truth=ground_truth,
+                    prediction=prediction_name,
+                )
+
+        # Outcomes are only ever recorded for requests that carry ground truth,
+        # but both request types can carry it.
+        for outcome_name in OUTCOME_NAMES.values():
+            CLASSIFICATION_OUTCOMES.labels(
+                request_type=request_type,
+                outcome=outcome_name,
+            )
+
+    # Only file uploads observe a row count.
+    for ground_truth in GROUND_TRUTHS:
+        FILE_ROWS.labels(ground_truth=ground_truth)
+
+
+initialise_children()
 
 
 def record_prediction_metrics(

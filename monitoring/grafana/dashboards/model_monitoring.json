@@ -10,7 +10,8 @@
   "panels": [
     {
       "id": 1,
-      "title": "Transactions Scored",
+      "title": "Total Predictions",
+      "description": "Every transaction scored by the model since the api-service process started, across all four prediction endpoints. Resets when the container restarts.",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -35,7 +36,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "none"
         },
         "overrides": []
       },
@@ -61,7 +62,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(increase(fraudguard_predictions_total[$__range]))",
+          "expr": "sum(fraudguard_predictions_total) or vector(0)",
           "instant": true,
           "legendFormat": "Transactions",
           "range": false,
@@ -124,7 +125,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(increase(fraudguard_predictions_total{prediction=\"fraud\"}[$__range])) / sum(increase(fraudguard_predictions_total[$__range]))",
+          "expr": "sum(fraudguard_predictions_total{prediction=\"fraud\"}) / clamp_min(sum(fraudguard_predictions_total), 1)",
           "instant": true,
           "legendFormat": "Fraud Rate",
           "range": false,
@@ -187,7 +188,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(increase(fraudguard_classification_outcomes_total{outcome=\"true_positive\"}[$__range])) / (sum(increase(fraudguard_classification_outcomes_total{outcome=\"true_positive\"}[$__range])) + sum(increase(fraudguard_classification_outcomes_total{outcome=\"false_negative\"}[$__range])))",
+          "expr": "sum(fraudguard_classification_outcomes_total{outcome=\"true_positive\"}) / clamp_min(sum(fraudguard_classification_outcomes_total{outcome=~\"true_positive|false_negative\"}), 1)",
           "instant": true,
           "legendFormat": "Recall",
           "range": false,
@@ -251,7 +252,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(increase(fraudguard_classification_outcomes_total{outcome=\"false_negative\"}[$__range]))",
+          "expr": "sum(fraudguard_classification_outcomes_total{outcome=\"false_negative\"}) or vector(0)",
           "instant": true,
           "legendFormat": "False Negatives",
           "range": false,
@@ -312,7 +313,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(increase(fraudguard_prediction_file_rows_count[$__range]))",
+          "expr": "sum(fraudguard_prediction_file_rows_count) or vector(0)",
           "instant": true,
           "legendFormat": "Files",
           "range": false,
@@ -373,7 +374,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum(increase(fraudguard_prediction_file_rows_sum[$__range])) / sum(increase(fraudguard_prediction_file_rows_count[$__range]))",
+          "expr": "sum(fraudguard_prediction_file_rows_sum) / clamp_min(sum(fraudguard_prediction_file_rows_count), 1)",
           "instant": true,
           "legendFormat": "Rows / File",
           "range": false,
@@ -407,7 +408,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "none"
         },
         "overrides": [
           {
@@ -464,7 +465,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (prediction) (increase(fraudguard_predictions_total[$__range]))",
+          "expr": "sum by (prediction) (fraudguard_predictions_total)",
           "instant": true,
           "legendFormat": "{{prediction}}",
           "range": false,
@@ -498,7 +499,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "none"
         },
         "overrides": [
           {
@@ -513,6 +514,10 @@
                   "mode": "fixed",
                   "fixedColor": "green"
                 }
+              },
+              {
+                "id": "displayName",
+                "value": "true positive"
               }
             ]
           },
@@ -528,6 +533,10 @@
                   "mode": "fixed",
                   "fixedColor": "blue"
                 }
+              },
+              {
+                "id": "displayName",
+                "value": "true negative"
               }
             ]
           },
@@ -543,6 +552,10 @@
                   "mode": "fixed",
                   "fixedColor": "orange"
                 }
+              },
+              {
+                "id": "displayName",
+                "value": "false positive"
               }
             ]
           },
@@ -558,6 +571,10 @@
                   "mode": "fixed",
                   "fixedColor": "red"
                 }
+              },
+              {
+                "id": "displayName",
+                "value": "false negative"
               }
             ]
           }
@@ -585,7 +602,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (outcome) (increase(fraudguard_classification_outcomes_total[$__range]))",
+          "expr": "sum by (outcome) (fraudguard_classification_outcomes_total)",
           "instant": true,
           "legendFormat": "{{outcome}}",
           "range": false,
@@ -602,7 +619,8 @@
         "x": 0,
         "y": 20
       },
-      "id": 6,
+      "id": 9,
+      "description": "Cumulative count of uploaded Parquet files per batch-size band, since the api-service process started. Both file endpoints truncate uploads to the first 500 rows, so in practice every file lands in the 101 - 10.000 band.",
       "targets": [
         {
           "datasource": {
@@ -610,7 +628,8 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "(last_over_time(sum(fraudguard_prediction_file_rows_bucket{le=\"10.0\"})[$__range:]) or vector(0))",
+          "expr": "sum(fraudguard_prediction_file_rows_bucket{le=\"10.0\"}) or vector(0)",
+          "instant": true,
           "legendFormat": "1 - 10",
           "refId": "A"
         },
@@ -620,7 +639,8 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "(last_over_time(sum(fraudguard_prediction_file_rows_bucket{le=\"100.0\"})[$__range:]) or vector(0)) - (last_over_time(sum(fraudguard_prediction_file_rows_bucket{le=\"10.0\"})[$__range:]) or vector(0))",
+          "expr": "(sum(fraudguard_prediction_file_rows_bucket{le=\"100.0\"}) or vector(0)) - (sum(fraudguard_prediction_file_rows_bucket{le=\"10.0\"}) or vector(0))",
+          "instant": true,
           "legendFormat": "11 - 100",
           "refId": "B"
         },
@@ -630,7 +650,8 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "(last_over_time(sum(fraudguard_prediction_file_rows_bucket{le=\"10000.0\"})[$__range:]) or vector(0)) - (last_over_time(sum(fraudguard_prediction_file_rows_bucket{le=\"100.0\"})[$__range:]) or vector(0))",
+          "expr": "(sum(fraudguard_prediction_file_rows_bucket{le=\"10000.0\"}) or vector(0)) - (sum(fraudguard_prediction_file_rows_bucket{le=\"100.0\"}) or vector(0))",
+          "instant": true,
           "legendFormat": "101 - 10.000",
           "refId": "C"
         },
@@ -640,7 +661,8 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "(last_over_time(sum(fraudguard_prediction_file_rows_bucket{le=\"1e+06\"})[$__range:]) or vector(0)) - (last_over_time(sum(fraudguard_prediction_file_rows_bucket{le=\"10000.0\"})[$__range:]) or vector(0))",
+          "expr": "(sum(fraudguard_prediction_file_rows_bucket{le=\"1e+06\"}) or vector(0)) - (sum(fraudguard_prediction_file_rows_bucket{le=\"10000.0\"}) or vector(0))",
+          "instant": true,
           "legendFormat": "10.001 - 1e6",
           "refId": "D"
         },
@@ -650,7 +672,8 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "(last_over_time(sum(fraudguard_prediction_file_rows_bucket{le=\"+Inf\"})[$__range:]) or vector(0)) - (last_over_time(sum(fraudguard_prediction_file_rows_bucket{le=\"1e+06\"})[$__range:]) or vector(0))",
+          "expr": "(sum(fraudguard_prediction_file_rows_bucket{le=\"+Inf\"}) or vector(0)) - (sum(fraudguard_prediction_file_rows_bucket{le=\"1e+06\"}) or vector(0))",
+          "instant": true,
           "legendFormat": "> 1e6",
           "refId": "E"
         }
