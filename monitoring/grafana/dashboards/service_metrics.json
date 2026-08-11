@@ -517,7 +517,7 @@
     },
         {
       "title": "Request Volume (rolling 5 min)",
-      "description": "Requests received in the trailing 5 minutes, split by endpoint and result. A 5-minute window is used on purpose: demo traffic is sparse, and a shorter window turns every request into a narrow spike that disappears again within a minute. Each request now shows as a step roughly 5 minutes wide. The y axis starts at 0 and is soft-capped at 5, so light traffic stays readable while a heavier burst still expands the axis instead of being clipped.",
+      "description": "Requests received in the trailing 5 minutes, split by endpoint and result. A 5-minute window is used on purpose: demo traffic is sparse, and a shorter window turns every request into a narrow spike that disappears again within a minute. Each request shows as a step roughly 5 minutes wide. The y axis starts at 0 and is soft-capped at 5, so light traffic stays readable while a heavier burst still expands the axis instead of being clipped. The trailing '> 0' keeps the legend short: every endpoint/result series is exported at zero from process start (that zero baseline is what lets increase() count the very first request), and without the filter all 14 combinations would be listed flat at zero. Consequence: a line ends rather than falling back to 0 when its burst leaves the window, and an idle service shows \"No data\" here - that is expected, not a broken panel. The raw counter behind the stat tiles is unfiltered and still holds the full history.",
       "type": "timeseries",
       "gridPos": {
         "h": 8,
@@ -533,7 +533,7 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (endpoint, result) (increase(fraudguard_prediction_requests_total[5m]))",
+          "expr": "sum by (endpoint, result) (increase(fraudguard_prediction_requests_total[5m])) > 0",
           "legendFormat": "{{endpoint}} ({{result}})",
           "range": true,
           "refId": "A"
