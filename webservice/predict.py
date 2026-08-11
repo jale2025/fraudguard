@@ -49,7 +49,9 @@ def load_model(model_name: str, alias: str = "production"):
             # Load by explicit version, not by alias, so the alias cannot move
             # between resolution and load.
             model = mlflow.pyfunc.load_model(f"models:/{model_name}/{version}")
-            print(f"Loaded model '{model_name}' v{version} (run_id={model.metadata.run_id})")
+            print(
+                f"Loaded model '{model_name}' v{version} (run_id={model.metadata.run_id})"
+            )
         except MlflowException as exc:
             raise ModelNotAvailableError(
                 f"Model '{model_name}' v{version} could not be loaded."

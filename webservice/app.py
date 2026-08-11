@@ -59,6 +59,7 @@ app = FastAPI(title="Credit Card Fraud Detection API", version="0.1")
 metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
 
+
 @app.get("/")
 def index():
     """Verify that the API is alive."""
@@ -592,4 +593,3 @@ def has_class_column(df: pd.DataFrame) -> bool:
 
     """
     return any(str(col).strip().lower() == "class" for col in df.columns)
-
