@@ -37,7 +37,7 @@ from predict import ModelNotAvailableError, ensure_model_available, predict
 from prefect.deployments import run_deployment
 from prometheus_client import make_asgi_app
 
-THRESHOLD_QUEUE_COUNTER = 10
+THRESHOLD_QUEUE_COUNTER = 251
 
 # Load dotenv
 load_dotenv()
@@ -302,9 +302,6 @@ async def predict_transactions_unknown_label(
         )
 
     try:
-        # Trim the df due to time limitation
-        df = df.iloc[:500].copy()
-
         # Column mapping for the time, amount and the 'V' columns
         column_mapping = {"Time": "elapsed_sec", "Amount": "amount"}
         column_mapping.update({f"V{i}": f"pc_{i}" for i in range(1, 29)})
@@ -432,10 +429,7 @@ async def predict_transactions_known_label(
         )
 
     try:
-        # Trim the df due to time limitations
-        df = df.iloc[:500].copy()
-
-        # # Column mapping for the time, amount and the 'V' columns
+        # Column mapping for the time, amount and the 'V' columns
         column_mapping = {"Time": "elapsed_sec", "Amount": "amount"}
         column_mapping.update({f"V{i}": f"pc_{i}" for i in range(1, 29)})
 
