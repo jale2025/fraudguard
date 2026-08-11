@@ -33,8 +33,17 @@ ignore = [
 ]
 
 [tool.pytest.ini_options]
+# "webservice" and "prefect" are needed because those modules import flat siblings
+# (webservice/app.py does "from data_model import ...", prefect/flow.py does
+# "from tasks import ...").
 pythonpath = [
-  "."
+  ".",
+  "webservice",
+  "prefect"
+]
+# Without this a bare pytest also walks data/, notebooks/ and dbt/.
+testpaths = [
+  "tests"
 ]
 
 [tool.ruff.lint.per-file-ignores]

@@ -42,7 +42,7 @@ from predict import (
 from prefect.deployments import run_deployment
 from prometheus_client import make_asgi_app
 
-THRESHOLD_QUEUE_COUNTER = 10
+THRESHOLD_QUEUE_COUNTER = 251
 
 # Load dotenv
 load_dotenv()
@@ -131,11 +131,6 @@ def predict_transaction_unknown_label(
             ground_truth="unknown",
         )
 
-        PREDICTION_REQUESTS.labels(
-            endpoint=endpoint,
-            result="success",
-        ).inc()
-
         print(f"Returning prediction: {prediction}")
 
         response = TransactionClassificationUnknownLabel(
@@ -150,6 +145,14 @@ def predict_transaction_unknown_label(
             counter_name="not_labeled_queue",
             current_data_query="SELECT * FROM raw.predictions ORDER BY elapsed_sec, pc_1",
         )
+
+        # Count the request only once the whole handler succeeded. Counting earlier
+        # would also let a later failure add an "internal_error" increment, so a
+        # single request would be counted twice and reported as a success.
+        PREDICTION_REQUESTS.labels(
+            endpoint=endpoint,
+            result="success",
+        ).inc()
 
         return response
 
@@ -205,11 +208,6 @@ def predict_transaction_known_label(
             actual=data.target_class,
         )
 
-        PREDICTION_REQUESTS.labels(
-            endpoint=endpoint,
-            result="success",
-        ).inc()
-
         print(f"Returning prediction: {prediction}")
 
         response = TransactionClassificationKnownLabel(
@@ -224,6 +222,14 @@ def predict_transaction_known_label(
             counter_name="labeled_queue",
             current_data_query="SELECT * FROM raw.labeled_predictions_queue ORDER BY elapsed_sec, pc_1",
         )
+
+        # Count the request only once the whole handler succeeded. Counting earlier
+        # would also let a later failure add an "internal_error" increment, so a
+        # single request would be counted twice and reported as a success.
+        PREDICTION_REQUESTS.labels(
+            endpoint=endpoint,
+            result="success",
+        ).inc()
 
         return response
 
@@ -311,9 +317,6 @@ async def predict_transactions_unknown_label(
         )
 
     try:
-        # Trim the df due to time limitation
-        df = df.iloc[:500].copy()
-
         # Column mapping for the time, amount and the 'V' columns
         column_mapping = {"Time": "elapsed_sec", "Amount": "amount"}
         column_mapping.update({f"V{i}": f"pc_{i}" for i in range(1, 29)})
@@ -441,10 +444,7 @@ async def predict_transactions_known_label(
         )
 
     try:
-        # Trim the df due to time limitations
-        df = df.iloc[:500].copy()
-
-        # # Column mapping for the time, amount and the 'V' columns
+        # Column mapping for the time, amount and the 'V' columns
         column_mapping = {"Time": "elapsed_sec", "Amount": "amount"}
         column_mapping.update({f"V{i}": f"pc_{i}" for i in range(1, 29)})
 
@@ -466,6 +466,17 @@ async def predict_transactions_known_label(
                 DEFAULT_MODEL_ALIAS,
             )
 
+        # Record the model metrics directly after inference, mirroring the
+        # unknown-label endpoint. Recording them after the database write would
+        # drop them whenever the persistence or Evidently path fails, even though
+        # the inference itself succeeded.
+        record_prediction_metrics(
+            predictions,
+            request_type="file",
+            ground_truth="known",
+            actual=actual_labels,
+        )
+
         df["prediction"] = predictions
 
         # Call the function to forward the incoming transactions into database
@@ -475,13 +486,6 @@ async def predict_transactions_known_label(
         create_report_and_trigger_workflow(
             counter_name="labeled_queue",
             current_data_query="SELECT * FROM raw.labeled_predictions_queue ORDER BY elapsed_sec, pc_1",
-        )
-
-        record_prediction_metrics(
-            predictions,
-            request_type="file",
-            ground_truth="known",
-            actual=actual_labels,
         )
 
         PREDICTION_REQUESTS.labels(
