@@ -123,12 +123,12 @@ def create_report_and_trigger_workflow(
 
     """
     try:
-        client = redis_client()
+        redis_clt = redis_client()
 
         # decode_responses=True, so a present key is a str. A missing key means no
         # rows were ever counted -- nothing seeds these keys, only INCR creates them.
-        raw = client.get(name=counter_name)
-        queue_counter_since_last_report = int(raw) if raw not in (None, "") else 0
+        raw_counter_value = redis_clt.get(name=counter_name)
+        queue_counter_since_last_report = int(raw_counter_value) if raw_counter_value not in (None, "") else 0
 
         if queue_counter_since_last_report < THRESHOLD_QUEUE_COUNTER:
             return
@@ -152,7 +152,7 @@ def create_report_and_trigger_workflow(
         # during the run still sees the counter above the threshold and is recorded
         # as skipped. No rows are lost, because current_data_query re-reads the whole
         # table -- the counter only decides *when* to look, not what to look at.
-        client.set(name=counter_name, value=0)
+        redis_clt.set(name=counter_name, value=0)
 
     except Exception:
         logger.exception("Could not evaluate the drift trigger for %s.", counter_name)
