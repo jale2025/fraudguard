@@ -5,7 +5,7 @@ This module owns the public API surface:
 - GET / for a simple info message
 - GET /health for a liveness check
 - POST /predict for model inference
-- /drift_report for the Evidently HTML reports
+- /drift_report/ for the Evidently HTML reports
 - /metrics for prometheus monitoring
 """
 
