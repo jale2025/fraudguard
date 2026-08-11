@@ -10,7 +10,7 @@
   "panels": [
     {
       "id": 1,
-      "title": "Total Number of Predictions",
+      "title": "Total Predictions",
       "description": "Every transaction scored by the model since the api-service process started, across all four prediction endpoints. Resets when the container restarts.",
       "type": "stat",
       "gridPos": {
@@ -36,7 +36,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "none"
         },
         "overrides": []
       },
@@ -408,7 +408,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "none"
         },
         "overrides": [
           {
@@ -499,7 +499,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "none"
         },
         "overrides": [
           {
@@ -514,6 +514,10 @@
                   "mode": "fixed",
                   "fixedColor": "green"
                 }
+              },
+              {
+                "id": "displayName",
+                "value": "true positive"
               }
             ]
           },
@@ -529,6 +533,10 @@
                   "mode": "fixed",
                   "fixedColor": "blue"
                 }
+              },
+              {
+                "id": "displayName",
+                "value": "true negative"
               }
             ]
           },
@@ -544,6 +552,10 @@
                   "mode": "fixed",
                   "fixedColor": "orange"
                 }
+              },
+              {
+                "id": "displayName",
+                "value": "false positive"
               }
             ]
           },
@@ -559,6 +571,10 @@
                   "mode": "fixed",
                   "fixedColor": "red"
                 }
+              },
+              {
+                "id": "displayName",
+                "value": "false negative"
               }
             ]
           }
