@@ -830,6 +830,7 @@
     {
       "id": 13,
       "title": "Last Drift Report",
+      "description": "Elapsed Time since last Drift Report",
       "type": "stat",
       "gridPos": {
         "h": 4,
