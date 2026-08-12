@@ -1,0 +1,1162 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>FraudGuard · Live Demo</title>
+    <style>
+      :root {
+        --bg: #07111f;
+        --surface: #0e1a2b;
+        --surface-raised: #132238;
+        --border: #253650;
+        --text: #f4f7fb;
+        --muted: #9eacc0;
+        --blue: #5da8ff;
+        --blue-strong: #2584ef;
+        --green: #43d19e;
+        --red: #ff6673;
+        --amber: #f5ba4f;
+        --shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+        --radius: 18px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        min-width: 320px;
+        background: var(--bg);
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 10% 0%, rgba(37, 132, 239, 0.15), transparent 30rem),
+          var(--bg);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        line-height: 1.5;
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      button,
+      a {
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .shell {
+        width: min(1180px, calc(100% - 40px));
+        margin: 0 auto;
+        padding: 28px 0 48px;
+      }
+
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 34px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+      }
+
+      .brand-mark {
+        display: grid;
+        width: 42px;
+        height: 42px;
+        place-items: center;
+        border: 1px solid rgba(93, 168, 255, 0.55);
+        border-radius: 12px;
+        background: rgba(37, 132, 239, 0.14);
+        color: #cfe5ff;
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+      }
+
+      .brand-name {
+        font-size: 19px;
+        font-weight: 750;
+        letter-spacing: -0.02em;
+      }
+
+      .brand-subtitle {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .model-status {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 42px;
+        padding: 9px 12px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: rgba(14, 26, 43, 0.78);
+      }
+
+      .status-dot {
+        width: 9px;
+        height: 9px;
+        flex: 0 0 auto;
+        border-radius: 50%;
+        background: var(--amber);
+        box-shadow: 0 0 0 4px rgba(245, 186, 79, 0.1);
+      }
+
+      .model-status.ready .status-dot {
+        background: var(--green);
+        box-shadow: 0 0 0 4px rgba(67, 209, 158, 0.11);
+      }
+
+      .model-status.error .status-dot {
+        background: var(--red);
+        box-shadow: 0 0 0 4px rgba(255, 102, 115, 0.11);
+      }
+
+      .status-copy {
+        min-width: 130px;
+      }
+
+      .status-label {
+        display: block;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .status-detail {
+        display: block;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .status-refresh {
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        border: 0;
+        border-radius: 8px;
+        color: var(--muted);
+        background: transparent;
+        cursor: pointer;
+      }
+
+      .status-refresh:hover,
+      .status-refresh:focus-visible {
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.06);
+        outline: none;
+      }
+
+      .hero {
+        max-width: 760px;
+        margin-bottom: 32px;
+      }
+
+      .eyebrow {
+        margin: 0 0 9px;
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        max-width: 700px;
+        margin: 0;
+        font-size: clamp(34px, 5vw, 58px);
+        line-height: 1.04;
+        letter-spacing: -0.045em;
+      }
+
+      .hero p:last-child {
+        max-width: 650px;
+        margin: 17px 0 0;
+        color: var(--muted);
+        font-size: 16px;
+      }
+
+      .workspace {
+        display: grid;
+        grid-template-columns: minmax(0, 1.12fr) minmax(300px, 0.88fr);
+        gap: 20px;
+        align-items: start;
+      }
+
+      .card {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: rgba(14, 26, 43, 0.92);
+        box-shadow: var(--shadow);
+      }
+
+      .upload-card {
+        padding: 24px;
+      }
+
+      .card-heading {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 22px;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: 20px;
+        letter-spacing: -0.025em;
+      }
+
+      .card-copy {
+        margin: 5px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .step-number {
+        color: #6f8199;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+      }
+
+      .mode-switch {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        margin-bottom: 18px;
+        padding: 5px;
+        border: 1px solid var(--border);
+        border-radius: 13px;
+        background: #0a1524;
+      }
+
+      .mode-option {
+        position: relative;
+      }
+
+      .mode-option input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .mode-option label {
+        display: block;
+        padding: 10px 12px;
+        border-radius: 9px;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 700;
+        text-align: center;
+        cursor: pointer;
+        transition: 150ms ease;
+      }
+
+      .mode-option input:checked + label {
+        color: var(--text);
+        background: var(--surface-raised);
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.22);
+      }
+
+      .mode-option input:focus-visible + label {
+        outline: 2px solid var(--blue);
+        outline-offset: 2px;
+      }
+
+      .drop-zone {
+        display: grid;
+        min-height: 220px;
+        place-items: center;
+        padding: 28px;
+        border: 1px dashed #3c5474;
+        border-radius: 15px;
+        background: rgba(7, 17, 31, 0.62);
+        text-align: center;
+        cursor: pointer;
+        transition:
+          border-color 150ms ease,
+          background 150ms ease,
+          transform 150ms ease;
+      }
+
+      .drop-zone:hover,
+      .drop-zone.dragging,
+      .drop-zone:focus-visible {
+        border-color: var(--blue);
+        background: rgba(37, 132, 239, 0.07);
+        outline: none;
+      }
+
+      .drop-zone.dragging {
+        transform: scale(1.006);
+      }
+
+      .upload-icon {
+        display: grid;
+        width: 46px;
+        height: 46px;
+        margin: 0 auto 13px;
+        place-items: center;
+        border-radius: 13px;
+        background: rgba(93, 168, 255, 0.12);
+        color: var(--blue);
+        font-size: 22px;
+      }
+
+      .drop-title {
+        display: block;
+        font-size: 15px;
+        font-weight: 750;
+      }
+
+      .drop-hint {
+        display: block;
+        margin-top: 5px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .selected-file {
+        display: none;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        max-width: 400px;
+        padding: 13px 14px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--surface-raised);
+        text-align: left;
+      }
+
+      .selected-file.visible {
+        display: flex;
+      }
+
+      .file-badge {
+        padding: 5px 7px;
+        border-radius: 6px;
+        color: #cfe5ff;
+        background: rgba(37, 132, 239, 0.17);
+        font-size: 10px;
+        font-weight: 850;
+      }
+
+      .file-copy {
+        min-width: 0;
+      }
+
+      .file-name {
+        display: block;
+        overflow: hidden;
+        font-size: 13px;
+        font-weight: 700;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .file-size {
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .action-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-top: 18px;
+      }
+
+      .mode-help {
+        max-width: 390px;
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .primary-button {
+        min-width: 148px;
+        padding: 11px 17px;
+        border: 0;
+        border-radius: 10px;
+        color: white;
+        background: var(--blue-strong);
+        font-size: 13px;
+        font-weight: 800;
+        cursor: pointer;
+        transition:
+          background 150ms ease,
+          transform 150ms ease;
+      }
+
+      .primary-button:hover:not(:disabled) {
+        background: #3b94f4;
+        transform: translateY(-1px);
+      }
+
+      .primary-button:focus-visible {
+        outline: 2px solid #a9d2ff;
+        outline-offset: 3px;
+      }
+
+      .primary-button:disabled {
+        color: #718197;
+        background: #1a2b42;
+        cursor: not-allowed;
+      }
+
+      .side-stack {
+        display: grid;
+        gap: 20px;
+      }
+
+      .pipeline-card,
+      .links-card {
+        padding: 22px;
+      }
+
+      .pipeline-list {
+        display: grid;
+        gap: 8px;
+        margin: 18px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .pipeline-item {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        padding: 10px 11px;
+        border-radius: 10px;
+        color: #7f8ea2;
+        background: rgba(7, 17, 31, 0.45);
+        font-size: 12px;
+        font-weight: 650;
+      }
+
+      .pipeline-check {
+        display: grid;
+        width: 20px;
+        height: 20px;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 1px solid #344761;
+        border-radius: 50%;
+        font-size: 11px;
+      }
+
+      .pipeline-item.complete {
+        color: #c8f6e6;
+        background: rgba(67, 209, 158, 0.07);
+      }
+
+      .pipeline-item.complete .pipeline-check {
+        border-color: rgba(67, 209, 158, 0.55);
+        color: var(--green);
+        background: rgba(67, 209, 158, 0.1);
+      }
+
+      .service-links {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 17px;
+      }
+
+      .service-link {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 11px 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        color: #dce9f8;
+        background: rgba(7, 17, 31, 0.48);
+        font-size: 12px;
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .service-link span:last-child {
+        color: #6f8199;
+      }
+
+      .service-link:hover,
+      .service-link:focus-visible {
+        border-color: #426087;
+        background: var(--surface-raised);
+        outline: none;
+      }
+
+      .result-card {
+        grid-column: 1 / -1;
+        display: none;
+        padding: 24px;
+      }
+
+      .result-card.visible {
+        display: block;
+        animation: rise 260ms ease-out;
+      }
+
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+      }
+
+      .result-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 19px;
+      }
+
+      .result-kicker {
+        display: block;
+        margin-bottom: 3px;
+        color: var(--green);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .result-badge {
+        padding: 6px 9px;
+        border-radius: 8px;
+        color: #c8f6e6;
+        background: rgba(67, 209, 158, 0.09);
+        font-size: 11px;
+        font-weight: 750;
+      }
+
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .metric {
+        min-height: 94px;
+        padding: 14px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: rgba(7, 17, 31, 0.46);
+      }
+
+      .metric.alert {
+        border-color: rgba(255, 102, 115, 0.28);
+        background: rgba(255, 102, 115, 0.045);
+      }
+
+      .metric-label {
+        display: block;
+        margin-bottom: 8px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .metric-value {
+        display: block;
+        font-size: 26px;
+        font-weight: 780;
+        letter-spacing: -0.035em;
+      }
+
+      .metric.alert .metric-value {
+        color: #ff9aa3;
+      }
+
+      .risk-bar {
+        height: 6px;
+        margin-top: 18px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #1a2a40;
+      }
+
+      .risk-fill {
+        width: 0;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--red);
+        transition: width 500ms ease;
+      }
+
+      .risk-caption {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        margin-top: 7px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .message {
+        grid-column: 1 / -1;
+        display: none;
+        padding: 14px 16px;
+        border: 1px solid rgba(255, 102, 115, 0.34);
+        border-radius: 12px;
+        color: #ffd2d6;
+        background: rgba(255, 102, 115, 0.07);
+        font-size: 13px;
+      }
+
+      .message.visible {
+        display: block;
+      }
+
+      footer {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        margin-top: 26px;
+        color: #64758d;
+        font-size: 11px;
+      }
+
+      @media (max-width: 900px) {
+        .workspace {
+          grid-template-columns: 1fr;
+        }
+
+        .side-stack {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .metrics-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 640px) {
+        .shell {
+          width: min(100% - 24px, 1180px);
+          padding-top: 18px;
+        }
+
+        header,
+        .action-row,
+        .result-header,
+        footer {
+          align-items: stretch;
+          flex-direction: column;
+        }
+
+        .model-status {
+          align-self: flex-start;
+        }
+
+        .hero {
+          margin-bottom: 24px;
+        }
+
+        .upload-card,
+        .pipeline-card,
+        .links-card,
+        .result-card {
+          padding: 18px;
+        }
+
+        .side-stack {
+          grid-template-columns: 1fr;
+        }
+
+        .primary-button {
+          width: 100%;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          transition-duration: 0.01ms !important;
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <header>
+        <div class="brand" aria-label="FraudGuard">
+          <div class="brand-mark" aria-hidden="true">FG</div>
+          <div>
+            <div class="brand-name">FraudGuard</div>
+            <div class="brand-subtitle">Credit card fraud detection</div>
+          </div>
+        </div>
+
+        <div class="model-status" id="model-status" aria-live="polite">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span class="status-copy">
+            <span class="status-label" id="status-label">Checking model</span>
+            <span class="status-detail" id="status-detail">Connecting to MLflow…</span>
+          </span>
+          <button
+            class="status-refresh"
+            id="status-refresh"
+            type="button"
+            title="Refresh model status"
+            aria-label="Refresh model status"
+          >
+            ↻
+          </button>
+        </div>
+      </header>
+
+      <section class="hero">
+        <p class="eyebrow">Live inference demo</p>
+        <h1>Detect suspicious transactions in one batch.</h1>
+        <p>
+          Upload a Parquet file to score transactions with the production model. FraudGuard
+          persists the results and updates its monitoring pipeline automatically.
+        </p>
+      </section>
+
+      <section class="workspace" aria-label="Fraud detection demo">
+        <form class="card upload-card" id="upload-form">
+          <div class="card-heading">
+            <div>
+              <h2>Analyse transactions</h2>
+              <p class="card-copy">Choose the label type and upload one Parquet batch.</p>
+            </div>
+            <span class="step-number">01</span>
+          </div>
+
+          <fieldset style="margin: 0; padding: 0; border: 0">
+            <legend class="sr-only" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0)">
+              Transaction label type
+            </legend>
+            <div class="mode-switch">
+              <div class="mode-option">
+                <input id="known" name="label-mode" type="radio" value="known" checked />
+                <label for="known">Known labels</label>
+              </div>
+              <div class="mode-option">
+                <input id="unknown" name="label-mode" type="radio" value="unknown" />
+                <label for="unknown">Unknown labels</label>
+              </div>
+            </div>
+          </fieldset>
+
+          <input id="file-input" type="file" accept=".parquet" hidden />
+          <div
+            class="drop-zone"
+            id="drop-zone"
+            role="button"
+            tabindex="0"
+            aria-controls="file-input"
+          >
+            <div id="empty-file-state">
+              <span class="upload-icon" aria-hidden="true">↑</span>
+              <span class="drop-title">Drop a Parquet file here</span>
+              <span class="drop-hint">or click to browse</span>
+            </div>
+            <div class="selected-file" id="selected-file">
+              <span class="file-badge">PARQUET</span>
+              <span class="file-copy">
+                <span class="file-name" id="file-name"></span>
+                <span class="file-size" id="file-size"></span>
+              </span>
+            </div>
+          </div>
+
+          <div class="action-row">
+            <p class="mode-help" id="mode-help">
+              The file must include a <strong>Class</strong> column. Performance metrics will
+              be calculated from the ground truth.
+            </p>
+            <button class="primary-button" id="submit-button" type="submit" disabled>
+              Run analysis
+            </button>
+          </div>
+        </form>
+
+        <div class="side-stack">
+          <section class="card pipeline-card">
+            <div class="card-heading">
+              <div>
+                <h2>Pipeline</h2>
+                <p class="card-copy">Completed after a successful request.</p>
+              </div>
+              <span class="step-number">02</span>
+            </div>
+            <ol class="pipeline-list" id="pipeline-list">
+              <li class="pipeline-item"><span class="pipeline-check">1</span>Model inference</li>
+              <li class="pipeline-item"><span class="pipeline-check">2</span>Database persistence</li>
+              <li class="pipeline-item"><span class="pipeline-check">3</span>Metrics recorded</li>
+              <li class="pipeline-item"><span class="pipeline-check">4</span>Drift threshold checked</li>
+            </ol>
+          </section>
+
+          <section class="card links-card">
+            <h2>System views</h2>
+            <p class="card-copy">Continue the end-to-end demo in the connected services.</p>
+            <nav class="service-links" aria-label="System views">
+              <a class="service-link" data-port="3000" href="#" target="_blank" rel="noreferrer">
+                <span>Grafana</span><span>↗</span>
+              </a>
+              <a class="service-link" data-port="4200" href="#" target="_blank" rel="noreferrer">
+                <span>Prefect</span><span>↗</span>
+              </a>
+              <a class="service-link" data-port="5000" href="#" target="_blank" rel="noreferrer">
+                <span>MLflow</span><span>↗</span>
+              </a>
+              <a class="service-link" href="/docs" target="_blank" rel="noreferrer">
+                <span>API docs</span><span>↗</span>
+              </a>
+            </nav>
+          </section>
+        </div>
+
+        <div class="message" id="message" role="alert"></div>
+
+        <section class="card result-card" id="result-card" aria-live="polite">
+          <div class="result-header">
+            <div>
+              <span class="result-kicker">Analysis complete</span>
+              <h2 id="result-title">Batch summary</h2>
+            </div>
+            <span class="result-badge" id="result-badge">Production model</span>
+          </div>
+          <div class="metrics-grid" id="metrics-grid"></div>
+          <div class="risk-bar" aria-hidden="true"><div class="risk-fill" id="risk-fill"></div></div>
+          <div class="risk-caption">
+            <span>Predicted fraud share</span>
+            <span id="risk-share">0.00%</span>
+          </div>
+        </section>
+      </section>
+
+      <footer>
+        <span>FraudGuard · MLOps lifecycle for fraud detection</span>
+        <span>FastAPI · MLflow · Prefect · Evidently · Prometheus</span>
+      </footer>
+    </main>
+
+    <script>
+      const state = { file: null, mode: "known", busy: false };
+
+      const elements = {
+        form: document.querySelector("#upload-form"),
+        fileInput: document.querySelector("#file-input"),
+        dropZone: document.querySelector("#drop-zone"),
+        emptyFileState: document.querySelector("#empty-file-state"),
+        selectedFile: document.querySelector("#selected-file"),
+        fileName: document.querySelector("#file-name"),
+        fileSize: document.querySelector("#file-size"),
+        modeHelp: document.querySelector("#mode-help"),
+        submitButton: document.querySelector("#submit-button"),
+        message: document.querySelector("#message"),
+        resultCard: document.querySelector("#result-card"),
+        resultTitle: document.querySelector("#result-title"),
+        resultBadge: document.querySelector("#result-badge"),
+        metricsGrid: document.querySelector("#metrics-grid"),
+        riskFill: document.querySelector("#risk-fill"),
+        riskShare: document.querySelector("#risk-share"),
+        modelStatus: document.querySelector("#model-status"),
+        statusLabel: document.querySelector("#status-label"),
+        statusDetail: document.querySelector("#status-detail"),
+        statusRefresh: document.querySelector("#status-refresh"),
+        pipelineItems: [...document.querySelectorAll(".pipeline-item")],
+      };
+
+      function setServiceLinks() {
+        document.querySelectorAll("[data-port]").forEach((link) => {
+          const target = new URL(window.location.href);
+          target.port = link.dataset.port;
+          target.pathname = "/";
+          target.search = "";
+          target.hash = "";
+          link.href = target.toString();
+        });
+      }
+
+      async function refreshModelStatus() {
+        elements.modelStatus.className = "model-status";
+        elements.statusLabel.textContent = "Checking model";
+        elements.statusDetail.textContent = "Connecting to MLflow…";
+        elements.statusRefresh.disabled = true;
+
+        try {
+          const readyResponse = await fetch("/ready", { cache: "no-store" });
+          if (!readyResponse.ok) throw new Error("Model unavailable");
+
+          let detail = "Production model ready";
+          try {
+            const infoResponse = await fetch("/model_info", { cache: "no-store" });
+            if (infoResponse.ok) {
+              const info = await infoResponse.json();
+              const version = info.cached_version ?? info.mlflow_registry_version ?? info.registry;
+              if (version !== undefined && version !== null) detail = `MLflow model v${version}`;
+            }
+          } catch (_) {
+            // Readiness is authoritative; diagnostic model details are optional.
+          }
+
+          elements.modelStatus.classList.add("ready");
+          elements.statusLabel.textContent = "Model ready";
+          elements.statusDetail.textContent = detail;
+        } catch (_) {
+          elements.modelStatus.classList.add("error");
+          elements.statusLabel.textContent = "Model unavailable";
+          elements.statusDetail.textContent = "Check MLflow and retry";
+        } finally {
+          elements.statusRefresh.disabled = false;
+        }
+      }
+
+      function formatBytes(bytes) {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+      }
+
+      function selectFile(file) {
+        hideMessage();
+        hideResults();
+
+        if (!file) {
+          state.file = null;
+          elements.emptyFileState.hidden = false;
+          elements.selectedFile.classList.remove("visible");
+          elements.submitButton.disabled = true;
+          return;
+        }
+
+        if (!file.name.toLowerCase().endsWith(".parquet")) {
+          selectFile(null);
+          showMessage("Please choose a file with the .parquet extension.");
+          return;
+        }
+
+        state.file = file;
+        elements.fileName.textContent = file.name;
+        elements.fileSize.textContent = formatBytes(file.size);
+        elements.emptyFileState.hidden = true;
+        elements.selectedFile.classList.add("visible");
+        elements.submitButton.disabled = state.busy;
+      }
+
+      function updateMode(mode) {
+        state.mode = mode;
+        hideMessage();
+        hideResults();
+        resetPipeline();
+
+        if (mode === "known") {
+          elements.modeHelp.innerHTML =
+            "The file must include a <strong>Class</strong> column. Performance metrics will be calculated from the ground truth.";
+        } else {
+          elements.modeHelp.innerHTML =
+            "The file must <strong>not</strong> include a Class column. FraudGuard will return model predictions only.";
+        }
+      }
+
+      function showMessage(text) {
+        elements.message.textContent = text;
+        elements.message.classList.add("visible");
+      }
+
+      function hideMessage() {
+        elements.message.classList.remove("visible");
+        elements.message.textContent = "";
+      }
+
+      function hideResults() {
+        elements.resultCard.classList.remove("visible");
+      }
+
+      function resetPipeline() {
+        elements.pipelineItems.forEach((item, index) => {
+          item.classList.remove("complete");
+          item.querySelector(".pipeline-check").textContent = String(index + 1);
+        });
+      }
+
+      function completePipeline() {
+        elements.pipelineItems.forEach((item, index) => {
+          window.setTimeout(() => {
+            item.classList.add("complete");
+            item.querySelector(".pipeline-check").textContent = "✓";
+          }, index * 90);
+        });
+      }
+
+      function metric(label, value, alert = false) {
+        const item = document.createElement("div");
+        item.className = alert ? "metric alert" : "metric";
+
+        const labelNode = document.createElement("span");
+        labelNode.className = "metric-label";
+        labelNode.textContent = label;
+
+        const valueNode = document.createElement("span");
+        valueNode.className = "metric-value";
+        valueNode.textContent = value;
+
+        item.append(labelNode, valueNode);
+        return item;
+      }
+
+      function renderResults(rows, durationSeconds) {
+        const total = rows.length;
+        const fraud = rows.filter((row) => Number(row.prediction) === 1).length;
+        const legitimate = total - fraud;
+        const fraudShare = total ? (fraud / total) * 100 : 0;
+        let metrics = [];
+
+        elements.resultTitle.textContent =
+          state.mode === "known" ? "Labelled batch summary" : "Unlabelled batch summary";
+        elements.resultBadge.textContent = state.mode === "known" ? "Ground truth available" : "Inference only";
+
+        if (state.mode === "known") {
+          const outcomes = { tp: 0, fp: 0, fn: 0, tn: 0 };
+          rows.forEach((row) => {
+            const actual = Number(row.class ?? row.target_class);
+            const predicted = Number(row.prediction);
+            if (actual === 1 && predicted === 1) outcomes.tp += 1;
+            if (actual === 0 && predicted === 1) outcomes.fp += 1;
+            if (actual === 1 && predicted === 0) outcomes.fn += 1;
+            if (actual === 0 && predicted === 0) outcomes.tn += 1;
+          });
+
+          const recallDenominator = outcomes.tp + outcomes.fn;
+          const recall = recallDenominator
+            ? `${((outcomes.tp / recallDenominator) * 100).toFixed(1)}%`
+            : "n/a";
+          metrics = [
+            metric("Transactions", total.toLocaleString()),
+            metric("Fraud alerts", fraud.toLocaleString(), true),
+            metric("Request time", `${durationSeconds.toFixed(2)} s`),
+            metric("Recall", recall),
+            metric("True positives", outcomes.tp.toLocaleString()),
+            metric("True negatives", outcomes.tn.toLocaleString()),
+            metric("False positives", outcomes.fp.toLocaleString()),
+            metric("False negatives", outcomes.fn.toLocaleString(), outcomes.fn > 0),
+          ];
+        } else {
+          metrics = [
+            metric("Transactions", total.toLocaleString()),
+            metric("Fraud alerts", fraud.toLocaleString(), true),
+            metric("Legitimate", legitimate.toLocaleString()),
+            metric("Request time", `${durationSeconds.toFixed(2)} s`),
+          ];
+        }
+
+        elements.metricsGrid.replaceChildren(...metrics);
+        elements.riskShare.textContent = `${fraudShare.toFixed(2)}%`;
+        elements.riskFill.style.width = `${Math.min(fraudShare, 100)}%`;
+        elements.resultCard.classList.add("visible");
+        completePipeline();
+        elements.resultCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+
+      function extractError(payload, status) {
+        if (typeof payload?.detail === "string") return payload.detail;
+        if (Array.isArray(payload?.detail)) {
+          return payload.detail.map((item) => item.msg || "Invalid input").join("; ");
+        }
+        return `The analysis failed with HTTP ${status}.`;
+      }
+
+      async function submitBatch(event) {
+        event.preventDefault();
+        if (!state.file || state.busy) return;
+
+        state.busy = true;
+        hideMessage();
+        hideResults();
+        resetPipeline();
+        elements.submitButton.disabled = true;
+        elements.submitButton.textContent = "Analysing…";
+
+        const endpoint =
+          state.mode === "known" ? "/predict_file_known_label" : "/predict_file_unknown_label";
+        const formData = new FormData();
+        formData.append("file", state.file);
+        const startedAt = performance.now();
+
+        try {
+          const response = await fetch(endpoint, { method: "POST", body: formData });
+          let payload = null;
+          try {
+            payload = await response.json();
+          } catch (_) {
+            // A non-JSON server error is handled by the generic status message below.
+          }
+
+          if (!response.ok) throw new Error(extractError(payload, response.status));
+          if (!Array.isArray(payload)) throw new Error("The API returned an unexpected response.");
+
+          renderResults(payload, (performance.now() - startedAt) / 1000);
+        } catch (error) {
+          showMessage(error.message || "The analysis could not be completed.");
+        } finally {
+          state.busy = false;
+          elements.submitButton.disabled = !state.file;
+          elements.submitButton.textContent = "Run analysis";
+        }
+      }
+
+      elements.dropZone.addEventListener("click", () => elements.fileInput.click());
+      elements.dropZone.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          elements.fileInput.click();
+        }
+      });
+      elements.fileInput.addEventListener("change", () => selectFile(elements.fileInput.files[0]));
+      elements.dropZone.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        elements.dropZone.classList.add("dragging");
+      });
+      elements.dropZone.addEventListener("dragleave", () => elements.dropZone.classList.remove("dragging"));
+      elements.dropZone.addEventListener("drop", (event) => {
+        event.preventDefault();
+        elements.dropZone.classList.remove("dragging");
+        selectFile(event.dataTransfer.files[0]);
+      });
+      document.querySelectorAll('input[name="label-mode"]').forEach((input) => {
+        input.addEventListener("change", () => updateMode(input.value));
+      });
+      elements.form.addEventListener("submit", submitBatch);
+      elements.statusRefresh.addEventListener("click", refreshModelStatus);
+
+      setServiceLinks();
+      refreshModelStatus();
+    </script>
+  </body>
+</html>

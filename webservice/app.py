@@ -3,14 +3,17 @@ FastAPI entrypoint for the local prediction service.
 
 This module owns the public API surface:
 - GET / for a simple info message
-- GET /health for a liveness check
-- POST /predict for model inference
-- /drift_report/ for the Evidently HTML reports
+- GET /demo for the presentation interface
+- GET /ready for model readiness
+- GET /model_info for the served model version
+- POST /predict_* for model inference
+- /drift_report/* for the Evidently HTML reports
 - /metrics for prometheus monitoring
 """
 
 import io
 import os
+from pathlib import Path
 from typing import Annotated, Literal
 
 import pandas as pd
@@ -48,6 +51,7 @@ from predict import (
 from prometheus_client import make_asgi_app
 
 QueueName = Literal["labeled_queue", "not_labeled_queue"]
+DEMO_PAGE = Path(__file__).resolve().parent / "frontend" / "demo.html"
 
 # Load dotenv
 load_dotenv()
@@ -71,6 +75,12 @@ app.mount("/metrics", metrics_app)
 def index():
     """Verify that the API is alive."""
     return {"message": "Credit Card Fraud Detection API"}
+
+
+@app.get("/demo", include_in_schema=False, response_class=FileResponse)
+def demo() -> FileResponse:
+    """Serve the lightweight presentation interface."""
+    return FileResponse(DEMO_PAGE)
 
 
 # # not used so far
