@@ -911,101 +911,6 @@
       "transparent": false
     },
     {
-      "id": 15,
-      "title": "Drift Score per Feature",
-      "type": "barchart",
-      "gridPos": {
-        "h": 8,
-        "w": 16,
-        "x": 0,
-        "y": 16
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "fillOpacity": 80,
-            "gradientMode": "none",
-            "lineWidth": 1,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "decimals": 3,
-          "mappings": [],
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
-      },
-      "options": {
-        "barRadius": 0,
-        "barWidth": 0.8,
-        "fullHighlight": false,
-        "groupWidth": 0.7,
-        "legend": {
-          "calcs": [],
-          "displayMode": "hidden",
-          "placement": "bottom"
-        },
-        "orientation": "horizontal",
-        "showValue": "auto",
-        "stacking": "none",
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        },
-        "xTickLabelRotation": 0,
-        "xTickLabelSpacing": 0
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "Prometheus"
-          },
-          "editorMode": "code",
-          "expr": "sort_desc(fraudguard_feature_drift_score)",
-          "format": "table",
-          "instant": true,
-          "legendFormat": "{{feature_name}}",
-          "range": false,
-          "refId": "A"
-        }
-      ],
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true,
-              "__name__": true,
-              "instance": true,
-              "job": true
-            }
-          }
-        }
-      ]
-    },
-    {
       "id": 16,
       "title": "Drift Report Outcomes",
       "description": "The report runs in the background after the response was sent, so a failure cannot show up as a non-2xx status code. This panel is the signal that the drift monitoring itself is still working.",
@@ -1118,9 +1023,9 @@
       "type": "barchart",
       "gridPos": {
         "h": 8,
-        "w": 24,
+        "w": 16,
         "x": 0,
-        "y": 24
+        "y": 16
       },
       "id": 9,
       "description": "Cumulative count of uploaded Parquet files per batch-size band, since the api-service process started. Both file endpoints truncate uploads to the first 500 rows, so in practice every file lands in the 101 - 10.000 band.",
