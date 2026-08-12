@@ -8,6 +8,7 @@ it at module level would make the fast ``tests/unit`` run pay that cost too.
 
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -75,6 +76,20 @@ def stubs(app_module: Any, monkeypatch: pytest.MonkeyPatch) -> Stubs:
         lambda **kwargs: recorded.report_calls.append(kwargs),
     )
     return recorded
+
+
+@pytest.fixture
+def reports_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """
+    Point the drift-report module at a temporary reports directory.
+
+    The default is the container's ``/reports`` volume, which does not exist on a
+    developer machine, so the report endpoints have to be told where to look.
+    """
+    import drift_report
+
+    monkeypatch.setattr(drift_report, "REPORTS_DIR", tmp_path)
+    return tmp_path
 
 
 @pytest.fixture

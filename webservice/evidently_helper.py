@@ -1,4 +1,7 @@
+import logging
 import os
+from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import polars as pl
@@ -10,6 +13,8 @@ from api_evidently_metrics import (
 )
 from evidently import Report
 from evidently.presets import DataDriftPreset
+
+logger = logging.getLogger(__name__)
 
 # Read environment variables
 DB_URI = os.environ.get("DB_URI", "")
@@ -26,19 +31,57 @@ def get_data_from_postgresql_db(db_uri: str, query: str) -> pd.DataFrame:
     return df.to_pandas()
 
 
+def save_snapshot_html(snapshot: Any, html_path: Path) -> None:
+    """
+    Write the rendered Evidently report to disk.
+
+    Args:
+        snapshot: Snapshot returned by ``Report.run``.
+        html_path (Path): Destination file. Parent directories are created.
+
+    """
+    html_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Evidently >= 0.7 exposes Snapshot.save_html. Fall back to rendering the
+    # string ourselves so a renamed helper cannot cost us the whole report.
+    if hasattr(snapshot, "save_html"):
+        snapshot.save_html(str(html_path))
+    else:
+        html_path.write_text(snapshot.get_html_str(), encoding="utf-8")
+
+
 def create_and_forward_data_drift_report_to_prometheus(
-    reference_data: pd.DataFrame, current_data: pd.DataFrame
+    reference_data: pd.DataFrame,
+    current_data: pd.DataFrame,
+    html_path: Path | None = None,
 ) -> bool:
-    """Create and forward the evidently data drift report to prometheus."""
+    """
+    Create and forward the evidently data drift report to prometheus.
+
+    Args:
+        reference_data (pd.DataFrame): Baseline the current data is compared against.
+        current_data (pd.DataFrame): Recently served transactions.
+        html_path (Path | None): When given, the rendered HTML report is written
+            there so it can be served and inspected later.
+
+    Returns:
+        bool: True if the share of drifted columns reached the threshold.
+
+    """
     try:
         # 1. Create and run report -> run() returns a Snapshot in Evidently >= 0.7
         report = Report([DataDriftPreset(drift_share=DRIFT_SHARE_THRESHOLD)])
         snapshot = report.run(current_data=current_data, reference_data=reference_data)
 
-        # 2. Results as a plain dict (no temp file needed)
+        # 2. Persist the HTML before parsing anything, so a changed metric layout
+        # below still leaves a readable report behind for debugging.
+        if html_path is not None:
+            save_snapshot_html(snapshot, html_path)
+
+        # 3. Results as a plain dict (no temp file needed)
         results = snapshot.dict()
 
-        # 3. Dataset-level drift: DriftedColumnsCount -> {"count": ..., "share": ...}
+        # 4. Dataset-level drift: DriftedColumnsCount -> {"count": ..., "share": ...}
         dataset_metric = None
         column_scores: dict[str, float] = {}
 
@@ -59,7 +102,7 @@ def create_and_forward_data_drift_report_to_prometheus(
         threshold = dataset_metric["config"].get("drift_share", DRIFT_SHARE_THRESHOLD)
         drift_detected = drifted_share >= threshold
 
-        # 4. Set Prometheus metrics
+        # 5. Set Prometheus metrics
         DATA_DRIFT_DETECTED.set(int(drift_detected))
         DRIFTED_COLUMNS_RATIO.set(drifted_share)
         NUMBER_OF_DRIFTED_COLUMNS.set(drifted_count)
@@ -67,13 +110,20 @@ def create_and_forward_data_drift_report_to_prometheus(
         for col_name, score in column_scores.items():
             FEATURE_DRIFT_SCORE.labels(feature_name=col_name).set(score)
 
-        print(f"DEBUG EVIDENTLY REPORT - DRIFT DETECTED: {drift_detected}")
+        logger.info(
+            "Evidently report finished: drift_detected=%s, drifted_share=%.3f",
+            drift_detected,
+            drifted_share,
+        )
 
         return drift_detected
 
-    except KeyError as exc:
-        print(f"KeyError while parsing Evidently report dictionary: {exc}")
+    except KeyError:
+        # Callers must be able to tell a broken report apart from "no drift", so
+        # every failure is re-raised: returning False here would silently suppress
+        # retraining. The background caller in drift_report.py contains it.
+        logger.exception("KeyError while parsing the Evidently report dictionary.")
         raise
-    except Exception as exc:
-        print(f"Unexpected error during Evidently drift calculation: {exc}")
+    except Exception:
+        logger.exception("Unexpected error during the Evidently drift calculation.")
         raise

@@ -141,6 +141,9 @@ services:
       - "8000:8000"
     volumes:
       - ./webservice:/webservice
+      # Deliberately not under /webservice: that path is bind-mounted and uvicorn
+      # runs with --reload, so writing reports there would restart the worker.
+      - reports_data:/reports
     environment:
       MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
       MODEL_NAME: ${MODEL_NAME}
@@ -148,6 +151,7 @@ services:
       DB_URI: ${DB_URI}
       REDIS_HOST: redis
       PREFECT_API_URL: ${PREFECT_API_URL}
+      REPORTS_DIR: /reports
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
@@ -210,6 +214,8 @@ volumes:
   grafana-data:
   prometheus-data:
   redis_data:
+  # Rendered Evidently HTML reports, served by the API at /drift_report/latest.
+  reports_data:
 
 networks:
   fraud-guard-network:
