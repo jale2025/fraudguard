@@ -765,7 +765,7 @@
     },
     {
       "id": 12,
-      "title": "Drifted Feature Share",
+      "title": "Drifted Feature Ratio",
       "type": "stat",
       "gridPos": {
         "h": 4,
