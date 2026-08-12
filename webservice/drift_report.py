@@ -38,7 +38,7 @@ from redis_helper import redis_client
 logger = logging.getLogger(__name__)
 
 # Rows that have to arrive on a queue before the next report is scheduled.
-THRESHOLD_QUEUE_COUNTER = 251
+THRESHOLD_QUEUE_COUNTER = 250
 
 # Current data per queue. Keeping these here stops the prediction endpoints and the
 # manual trigger endpoint from drifting apart.
