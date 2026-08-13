@@ -69,19 +69,19 @@ def create_and_forward_data_drift_report_to_prometheus(
 
     """
     try:
-        # 1. Create and run report -> run() returns a Snapshot in Evidently >= 0.7
+        # Create and run report -> run() returns a Snapshot in Evidently >= 0.7
         report = Report([DataDriftPreset(drift_share=DRIFT_SHARE_THRESHOLD)])
         snapshot = report.run(current_data=current_data, reference_data=reference_data)
 
-        # 2. Persist the HTML before parsing anything, so a changed metric layout
+        # Persist the HTML before parsing anything, so a changed metric layout
         # below still leaves a readable report behind for debugging.
         if html_path is not None:
             save_snapshot_html(snapshot, html_path)
 
-        # 3. Results as a plain dict (no temp file needed)
+        # Results as a plain dict (no temp file needed)
         results = snapshot.dict()
 
-        # 4. Dataset-level drift: DriftedColumnsCount -> {"count": ..., "share": ...}
+        # Dataset-level drift: DriftedColumnsCount -> {"count": ..., "share": ...}
         dataset_metric = None
         column_scores: dict[str, float] = {}
 
@@ -102,7 +102,7 @@ def create_and_forward_data_drift_report_to_prometheus(
         threshold = dataset_metric["config"].get("drift_share", DRIFT_SHARE_THRESHOLD)
         drift_detected = drifted_share >= threshold
 
-        # 5. Set Prometheus metrics
+        # Set Prometheus metrics
         DATA_DRIFT_DETECTED.set(int(drift_detected))
         DRIFTED_COLUMNS_RATIO.set(drifted_share)
         NUMBER_OF_DRIFTED_COLUMNS.set(drifted_count)
