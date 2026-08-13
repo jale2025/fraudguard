@@ -15,4 +15,5 @@ COPY prefect /prefect
 COPY dbt /prefect/dbt
 COPY data/parquet_files/base_dataset.parquet /prefect/base_dataset.parquet
 
+# Move the base dataset into the incoming folder and trigger the first prefect flow for initialization
 CMD ["sh", "-c", "mv /prefect/base_dataset.parquet /data/incoming/base_dataset.parquet && python flow.py"]
