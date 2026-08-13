@@ -1,19 +1,3 @@
-"""
-Threshold check and background Evidently drift report for the prediction API.
-
-The endpoints in ``app.py`` used to run the whole drift report inline. That put two
-full table reads and a CPU-bound Evidently run into the request path -- on the event
-loop itself for the two ``async def`` file endpoints -- and let a crashing report turn
-an otherwise successful prediction into an HTTP 500.
-
-The work is therefore split in two:
-
-- :func:`create_report_and_trigger_workflow` stays in the request path but only reads
-  the redis row counter, and schedules the rest as a FastAPI background task.
-- :func:`run_drift_report` runs after the response was sent. It never raises; its
-  health is reported through the ``fraudguard_drift_report_*`` metrics instead.
-"""
-
 import logging
 import os
 import shutil
