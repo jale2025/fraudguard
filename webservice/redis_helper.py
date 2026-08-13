@@ -1,12 +1,3 @@
-"""
-Shared redis client for the prediction service.
-
-``api_to_database`` bumps the queue counters and ``drift_report`` reads them. Both
-used to build their own ``redis.Redis`` per call -- ``api_to_database`` even once per
-batch. The client is thread-safe and holds a connection pool, so one per process is
-both cheaper and enough.
-"""
-
 import os
 from functools import lru_cache
 
