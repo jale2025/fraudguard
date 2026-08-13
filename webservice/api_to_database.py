@@ -12,8 +12,6 @@ from sqlalchemy.exc import IntegrityError, ProgrammingError, SQLAlchemyError
 
 DB_URI = os.getenv("DB_URI")
 
-# Redis counter names per target table. "<queue>" drives the drift report and is
-# reset on every run; "<queue>_length" is a cumulative total.
 QUEUE_COUNTERS = {
     "predictions": "not_labeled_queue",
     "labeled_predictions_queue": "labeled_queue",
