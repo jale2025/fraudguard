@@ -1,5 +1,3 @@
--- {{ config(materialized='table', schema='stg') }}
-
 select 
     elapsed_sec,
     pc_1,

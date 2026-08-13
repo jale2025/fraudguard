@@ -1,5 +1,3 @@
--- {{ config(materialized='table', schema='int') }}
-
 select *
 from {{ ref('stg_predictions') }}
 

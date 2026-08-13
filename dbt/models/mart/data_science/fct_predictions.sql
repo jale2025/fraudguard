@@ -1,6 +1,3 @@
--- {{ config(materialized='table', schema='data_science') }}
-
-
 select
     elapsed_sec,
     pc_1,

@@ -1,5 +1,3 @@
--- {{ config(materialized='table', schema='stg') }}
-
 select 
     "Time" as elapsed_sec,
     "V1" as pc_1,
