@@ -106,3 +106,9 @@ Stop the application:
 ```bash
 docker compose down
 ```
+
+Stop the application and remove all volumes:
+
+```bash
+docker compose down -v
+```
