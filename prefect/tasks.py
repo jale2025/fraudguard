@@ -103,7 +103,6 @@ def dbt_build(project_dir: str, target: str = "dev") -> bool:
 
 @task
 def get_data_train_model(
-    db_table_name=DBT_SCHEMA,
     target_label: str = "class",
     test_size: float = 0.2,
     random_state: int = SEED,
