@@ -1,4 +1,4 @@
--- 1. Alle benötigten Datenbanken anlegen
+-- Create all required databases
 CREATE DATABASE prefect;
 CREATE DATABASE mlflow;
 CREATE DATABASE fraud_detection;

@@ -38,7 +38,7 @@ def move_file(source_path: str | Path, destination_dir: str | Path) -> None:
 
 def data_available(dir_path: str | Path) -> bool:
     """
-    This function checks a file does exist in the corresponding folder.
+    Check a file does exist in the corresponding folder.
 
     Args:
         dir_path (str | Path, optional): Used directory to check new files. Defaults to os.environ["DATA_DIR_INCOMING"].
@@ -46,7 +46,7 @@ def data_available(dir_path: str | Path) -> bool:
     Returns:
         bool: A file does exist (true) or not (false).
 
-    """  # noqa: D401, D404
+    """
     # Create a path by the string
     dir_path = Path(dir_path)
 
@@ -68,7 +68,7 @@ class FileLists:
 
 def validate_data_files(dir_path: str | Path) -> FileLists:
     """
-    This function validates all files of the corresponding directory.
+    Validate all files of the corresponding directory.
 
     Args:
         dir_path (str | Path, optional): Used directory to validate all containing files. Defaults to os.environ["DATA_DIR_INCOMING"].
@@ -76,7 +76,7 @@ def validate_data_files(dir_path: str | Path) -> FileLists:
     Returns:
         FileLists: A dataclass object contains the list of valid/invalid files.
 
-    """  # noqa: D401, D404
+    """
     # Create a path by the string
     dir_path = Path(dir_path)
 

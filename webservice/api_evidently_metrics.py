@@ -69,8 +69,7 @@ def initialise_children() -> None:
     A labelled child does not exist in the registry until ``.labels()`` is called
     for it, so it is first scraped already holding 1 and range queries such as
     ``increase()`` and ``rate()`` silently lose that first observation. Creating
-    the children up front gives those queries the zero baseline they need. This
-    mirrors ``api_http_metrics.initialise_children``.
+    the children up front gives those queries the zero baseline they need.
     """
     for queue in QUEUES:
         DRIFT_REPORT_DURATION.labels(queue=queue)

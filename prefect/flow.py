@@ -36,7 +36,7 @@ def fraudguard_pipeline(is_triggered_by_evidently: bool = False) -> None:
         train_result_dict = get_data_train_model()
         new_model_registered = model_registration(train_result_dict)
 
-    # Create new dbt prod schema
+    # If new production model has a better recall run dbt prod
     if new_model_registered:
         dbt_success = dbt_build(
             project_dir=os.environ["DBT_PROJECT_DIR"], target="prod"

@@ -10,8 +10,6 @@ from mlflow.exceptions import MlflowException
 from mlflow.pyfunc import PyFuncModel
 from mlflow.tracking import MlflowClient
 
-# MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
-
 _model_lock = threading.Lock()
 _model_cache: dict[tuple[str, str], tuple[str, PyFuncModel]] = {}
 
@@ -100,13 +98,6 @@ def predict(
         int: Predicted fraud label.
 
     """
-    # # Ensure tracking URI is available
-    # if not mlflow_tracking_uri:
-    #     raise RuntimeError("MLFLOW_TRACKING_URI is not set.")
-
-    # # Set MLflow tracking URI before resolving model reference
-    # mlflow.set_tracking_uri(mlflow_tracking_uri)
-
     # Convert Pydantic request object into a DataFrame if necessary
     if isinstance(data, pd.DataFrame):
         df_transactions_input = data.copy()
@@ -121,8 +112,6 @@ def predict(
     # Ensure all feature columns are converted to float
     df_transactions_input = df_transactions_input.astype(float)
 
-    # Load model from registry using cached helper function
-    # model = load_model(model_name, alias)
     model = ensure_model_available(
         model_name,
         alias,
@@ -156,7 +145,6 @@ def served_model_info(model_name: str, alias: str = "production") -> dict:
 
     return {
         "cached_version": loaded_version,
-        # Read from the model object itself, not from our own bookkeeping.
         "loaded_run_id": model.metadata.run_id,
         "loaded_model_uuid": model.metadata.model_uuid,
         "mlflow_registry_version": _resolve_version(model_name, alias),

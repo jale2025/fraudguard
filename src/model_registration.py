@@ -142,14 +142,6 @@ def register_model(
 
     # Evaluate if the newly trained model outperforms the current production baseline
     if recall_prod is None or recall_test > recall_prod:
-        # # Ensure the destination folder exists
-        # output_dir = Path("models")
-        # output_dir.mkdir(parents=True, exist_ok=True)
-        # skops_file_path = output_dir / "best_fraud_model.skops"
-
-        # # Save the best pipeline/estimator as a .skops file
-        # sio.dump(rnd_search_cv_obj.best_estimator_, skops_file_path)
-
         # Promote the new model version to production in MLflow
         client.set_registered_model_alias(
             name=model_name, alias=model_alias, version=model_version.version
