@@ -53,15 +53,12 @@ from prometheus_client import make_asgi_app
 QueueName = Literal["labeled_queue", "not_labeled_queue"]
 DEMO_PAGE = Path(__file__).resolve().parent / "frontend" / "demo.html"
 
-# Load dotenv
 load_dotenv()
 
 # Load environment variables from the composed environment.
 MLFLOW_TRACKING_URI = os.environ["MLFLOW_TRACKING_URI"]
 REGISTERED_MODEL_NAME = os.environ["MODEL_NAME"]
 DEFAULT_MODEL_ALIAS = os.environ["DEFAULT_MODEL_ALIAS"]
-# Not used here anymore -- api_to_database and drift_report read it themselves -- but
-# both read it lazily, so this keeps a missing DB_URI a startup failure.
 DB_URI = os.environ["DB_URI"]
 
 app = FastAPI(title="Credit Card Fraud Detection API", version="0.1")
@@ -81,13 +78,6 @@ def index():
 def demo() -> FileResponse:
     """Serve the lightweight presentation interface."""
     return FileResponse(DEMO_PAGE)
-
-
-# # not used so far
-# @app.get("/health")
-# def health() -> dict[str, str]:
-#     """Check the API liveness."""
-#     return {"status": "ok"}
 
 
 @app.get("/ready")
