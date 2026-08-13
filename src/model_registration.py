@@ -142,7 +142,6 @@ def register_model(
 
     # Evaluate if the newly trained model outperforms the current production baseline
     if recall_prod is None or recall_test > recall_prod:
-
         # Promote the new model version to production in MLflow
         client.set_registered_model_alias(
             name=model_name, alias=model_alias, version=model_version.version
